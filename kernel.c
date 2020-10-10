@@ -11,6 +11,13 @@ typedef struct pcb {
   
 } pcb_t; 
   
+typedef struct proc_table {
+
+} proc_table_t;
+
+typedef struct free_frame_vec {
+
+} free_frame_vec_t
 /*********** Function Prototypes *********/
 int Fork (void);
 int Exec (char *, char **);
