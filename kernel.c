@@ -17,7 +17,11 @@ typedef struct proc_table {
 
 typedef struct free_frame_vec {
 
-} free_frame_vec_t
+} free_frame_vec_t;
+
+typedef struct page_table {
+
+} page_table_t;
 /*********** Function Prototypes *********/
 int Fork (void);
 int Exec (char *, char **);
