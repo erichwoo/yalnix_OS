@@ -65,23 +65,34 @@ int CvarBroadcast (int);
 int Reclaim (int);
 
 // Traps
+
+// Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *);
+// Check the process table to decide which process to schedule; initialize a context switch if necessary
 void TrapClock(UserContext *);
+// Abort current process, switch context
 void TrapIllegal(UserContext *);
+// Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation
 void TrapMemory(UserContext *);
+// Abort
 void TrapMath(UserContext *);
+// Read input and store in buffer; set a flag that wakes up blocked process waiting for input
 void TrapTtyReceive(UserContext *);
+// Start next transmission; resumes blocked process
 void TrapTtyTransmit(UserContext *);
+// TBD
 void TrapDisk(UserContext *);
 
 
 /* 
  * Definitions of functions to be written by student
  */
-
+// Modify page table entry accordingly; do we need 
 int SetKernelBrk (void *);
 
 /* This is the primary entry point into the kernel */
 void KernelStart (char**, unsigned int, UserContext *);
 
 /********** Function Pseudocodes **********/
+
+
