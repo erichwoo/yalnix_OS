@@ -14,8 +14,19 @@ typedef struct pcb {
   UserContext uc;
   KernelContext kc;
 } pcb_t; 
+  
+typedef struct proc_table {
 
-typedef struct bitvector;
+} proc_table_t;
+
+typedef struct free_frame_vec {
+
+} free_frame_vec_t;
+
+typedef struct page_table {
+
+} page_table_t;
+
 /*********** Function Prototypes *********/
 
 void KernelStart(char*, unsigned int, UserContext*);
@@ -54,13 +65,13 @@ int CvarBroadcast (int);
 int Reclaim (int);
 
 // Traps
-void TrapKernel(UserContext);
-void TrapClock(UserContext);
-void TrapIllegal(UserContext);
-void TrapMemory(UserContext);
-void TrapMath(UserContext);
-void TrapTtyReceive(UserContext);
-void TrapTtyTransmit(UserContext);
-void TrapDisk(UserContext);
+void TrapKernel(UserContext *);
+void TrapClock(UserContext *);
+void TrapIllegal(UserContext *);
+void TrapMemory(UserContext *);
+void TrapMath(UserContext *);
+void TrapTtyReceive(UserContext *);
+void TrapTtyTransmit(UserContext *);
+void TrapDisk(UserContext *);
 
 /********** Function Pseudocodes **********/
