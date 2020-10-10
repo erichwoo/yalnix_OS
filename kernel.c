@@ -46,13 +46,13 @@ int CvarSignal (int);
 int CvarBroadcast (int);
 int Reclaim (int);
 
-void TrapKernel(UserContext);
-void TrapClock(UserContext);
-void TrapIllegal(UserContext);
-void TrapMemory(UserContext);
-void TrapMath(UserContext);
-void TrapTtyReceive(UserContext);
-void TrapTtyTransmit(UserContext);
-void TrapDisk(UserContext);
+void TrapKernel(UserContext *);
+void TrapClock(UserContext *);
+void TrapIllegal(UserContext *);
+void TrapMemory(UserContext *);
+void TrapMath(UserContext *);
+void TrapTtyReceive(UserContext *);
+void TrapTtyTransmit(UserContext *);
+void TrapDisk(UserContext *);
 
 /********** Function Pseudocodes **********/
