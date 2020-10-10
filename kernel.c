@@ -74,4 +74,22 @@ void TrapTtyReceive(UserContext *);
 void TrapTtyTransmit(UserContext *);
 void TrapDisk(UserContext *);
 
+int TtyReceive (int, void *, int);
+void TtyTransmit (int, void *, int);
+void Halt (void);
+void WriteRegister (int, unsigned int);
+unsigned int ReadRegister (int);
+void Pause (void);
+void TracePrintf (int, char *, ...);
+void DiskAccess (int, int, void *);
+
+/* 
+ * Definitions of functions to be written by student
+ */
+
+int SetKernelBrk (void *);
+
+/* This is the primary entry point into the kernel */
+void KernelStart (char**, unsigned int, UserContext *);
+
 /********** Function Pseudocodes **********/
