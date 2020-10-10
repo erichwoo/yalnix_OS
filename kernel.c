@@ -84,10 +84,7 @@ void TrapTtyTransmit(UserContext *);
 void TrapDisk(UserContext *);
 
 
-/* 
- * Definitions of functions to be written by student
- */
-// Modify page table entry accordingly; do we need 
+// Modify page table entry accordingly; do we need to update all the kernel page tables?
 int SetKernelBrk (void *);
 
 /* This is the primary entry point into the kernel */
