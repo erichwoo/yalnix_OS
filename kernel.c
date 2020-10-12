@@ -4,37 +4,57 @@
  */
 
 #include "hardware.h"
+#include "ykernel.h"
 
 /************ Data Structs *********/
 
+void *interrupt_handlers[TRAP VECTOR SIZE]; // interrupt_handlers 
+
 typedef struct pcb {
   int pid;
-  int ppid; // tracking parent
-  // tracking children - possibly int* children?
+  int ppid;
+  // possibly pcb_t* children?
   int state;
   int status;
-  // address space - region 0 & region 1 page table?
-  UserContext uc;
-  KernelContext kc;
+  // address space
+  reg1_pt_t *reg1; // region 1 page table management
+  kernel_stack_pt_t *k_stack; // copy of kernel stack page table
+
+  UserContext *uc;
+  KernelContext *kc;
+
 } pcb_t; 
-
-// some structure managing all pcbs
-typedef struct proc_table {
-
+  
+typedef struct proc_table { // maybe a queue?
+  int size; // number of current process under management
+  pcb_t *head; //pointer to the head of the queue
 } proc_table_t;
 
 // tracking which frames in physical are free
 typedef struct free_frame_vec {
-
+  int size; // available physical memory size
+  char *bit_vector // pointer to a bit vector 
 } free_frame_vec_t;
 
-// for accessing the correct address space
-typedef struct page_table {
+typedef struct reg1_pt { // userland page table
+  void *heap_low // end of data and start of heap
+  void *heap_high // brk or the address just below brk?
+  void *stack_low // top of the user stack
+  pte_t pt[]; // actual entries
+} reg1_pt_t;
 
-} page_table_t;
+typedef struct kernel_stack_pt { // kernel stack page_table
+  void *stack_low // top of the kernel stack
+  pte_t pt[]; // actual entries
+} kernel_stack_pt_t;
+
+typedef struct kernel_heap_pt {
+  void *brk // to be modified by SetKernelBrk
+  pte_t pt[]; // actual entries
+} kernel_heap_pt_t;
 
 // need some queue data struct to manage incoming pipe/lock/cond_var users
-// as well as possibly pcb management
+// could possibly help with pcb management with proc_table
 typedef struct queue {
   
 } queue_t;
@@ -60,7 +80,32 @@ typedef struct cond_var {
 
 /*********** Function Prototypes and Commented Pseudocode *********/
 
-// Basic Process Coordination
+// Possibly useful functions:
+
+// find one free frame each time ?
+pte_t FindFreeFrame(free_frame_vec_t* vec);
+
+// VM setup, doing gymnastics to set up VM, which should be enabled when it returns
+/*
+1. set up free_frame_vec
+2. set up region 0 page table (assign full space for stack?)
+3. turn on VM (do we need to care about region 1 at this point?)
+*/
+void VM_setup();
+
+// configure the first pcb during boot time
+// for both idle and init?
+/*
+1. Create proc_table
+2. create and add pcb
+3. setup region 1
+4. Configure UserContext
+5. Somehow return to usermode? (how to do that??? can kernel trap itself? if not where to store the UserContext
+so the hardware knows? is it uctxt?)
+*/
+void PCB_setup();
+
+/////////////// Basic Process Coordination
 
 /* Create a new child pcb_t
  * assign new pid and its ppid
@@ -103,7 +148,7 @@ int Brk (void *);
  */
 int Delay (int);
 
-// I/O Syscalls
+////////////// I/O Syscalls
 
 /* Check if TtyReceive has extra chars
  * if not, state = block and wait for TrapTtyReceive to come in
@@ -118,7 +163,7 @@ int TtyRead (int, void *, int);
  */
 int TtyWrite (int, void *, int);
 
-// IPC Syscalls
+//////////////// IPC Syscalls
 
 /* Initialize pipe_t with id, lock, queues*/
 int PipeInit (int *);
@@ -137,7 +182,7 @@ int PipeRead (int, void *, int);
  */
 int PipeWrite (int, void *, int);
 
-// Synchronization Syscalls
+//////////// Synchronization Syscalls
 
 /* initialize new lock_t with its id, locked = 0, initialize queue */
 int LockInit (int *);
@@ -169,7 +214,7 @@ int CvarBroadcast (int);
 /* free and remove all memory in the pipe/lock/condvar of the given id*/
 int Reclaim (int);
 
-// Traps
+//////////////// Traps
 
 // Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *);
@@ -191,16 +236,21 @@ void TrapTtyTransmit(UserContext *);
 void TrapDisk(UserContext *);
 
 
-// Modify page table entry accordingly; do we need to update all the kernel page tables?
+// Modify kernel page table:
+// The kernel keeps a separate copy of each process's kernel stack page table,
+// and copy them when switching context.
+// The bottom half of the page table shall remain the same,
+// only to be touched by SetKernelBrk.
+// This means all process's will be given the same region0 PTBR?
 int SetKernelBrk (void *);
 
-/* This is the primary entry point into the kernel */
+/*
+1. call VM_setup to set up virtual memory
+2. set up trap table
+3. call PCB_setup to configure idle
+*/
 void KernelStart (char**, unsigned int, UserContext *);
 
 // Kernel Context Switching
 KernelContext* KCSwitch(KernelContext*, void*, void*);
 KernelContext* KCCopy(KernelContext*, void*, void*);
-
-/********** Function Pseudocodes **********/
-
-
