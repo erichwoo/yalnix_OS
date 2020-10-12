@@ -4,33 +4,80 @@
  */
 
 #include "hardware.h"
+#include "ykernel.h"
 
 /************ Data Structs *********/
+
+void *interrupt_handlers[TRAP VECTOR SIZE]; // interrupt_handlers 
 
 typedef struct pcb {
   int pid;
   int ppid;
-  // possibly int* children?
+  // possibly pcb_t* children?
   int state;
   int status;
   // address space
-  UserContext uc;
-  KernelContext kc;
+  reg1_pt_t *reg1; // region 1 page table management
+  kernel_stack_pt_t *k_stack; // copy of kernel stack page table
+
+  UserContext *uc;
+  KernelContext *kc;
+
 } pcb_t; 
   
-typedef struct proc_table {
-
+typedef struct proc_table { // maybe a queue?
+  int size; // number of current process under management
+  pcb_t *head; //pointer to the head of the queue
 } proc_table_t;
 
 typedef struct free_frame_vec {
-
+  int size; // available physical memory size
+  char *bit_vector // pointer to a bit vector 
 } free_frame_vec_t;
 
-typedef struct page_table {
+typedef struct reg1_pt { // userland page table
+  void *heap_low // end of data and start of heap
+  void *heap_high // brk or the address just below brk?
+  void *stack_low // top of the user stack
+  pte_t pt[]; // actual entries
+} reg1_pt_t;
 
-} page_table_t;
+typedef struct kernel_stack_pt { // kernel stack page_table
+  void *stack_low // top of the kernel stack
+  pte_t pt[]; // actual entries
+} kernel_stack_pt_t;
+
+typedef struct kernel_heap_pt {
+  void *brk // to be modified by SetKernelBrk
+  pte_t pt[]; // actual entries
+} kernel_heap_pt_t;
 
 /*********** Function Prototypes *********/
+
+// Possibly useful functions:
+
+// find one free frame each time ?
+pte_t FindFreeFrame(free_frame_vec_t* vec);
+
+// VM setup, doing gymnastics to set up VM, which should be enabled when it returns
+/*
+1. set up free_frame_vec
+2. set up region 0 page table (assign full space for stack?)
+3. turn on VM (do we need to care about region 1 at this point?)
+*/
+void VM_setup();
+
+// configure the first pcb during boot time
+// for both idle and init?
+/*
+1. Create proc_table
+2. create and add pcb
+3. setup region 1
+4. Configure UserContext
+5. Somehow return to usermode? (how to do that??? can kernel trap itself? if not where to store the UserContext
+so the hardware knows? is it uctxt?)
+*/
+void PCB_setup();
 
 // Basic Process Coordination
 
@@ -115,16 +162,26 @@ void TrapTtyTransmit(UserContext *);
 void TrapDisk(UserContext *);
 
 
-// Modify page table entry accordingly; do we need to update all the kernel page tables?
+// Modify kernel page table:
+// The kernel keeps a separate copy of each process's kernel stack page table,
+// and copy them when switching context.
+// The bottom half of the page table shall remain the same,
+// only to be touched by SetKernelBrk.
+// This means all process's will be given the same region0 PTBR?
 int SetKernelBrk (void *);
 
-/* This is the primary entry point into the kernel */
+/*
+1. call VM_setup to set up virtual memory
+2. set up trap table
+3. call PCB_setup to configure idle
+*/
 void KernelStart (char**, unsigned int, UserContext *);
 
 // Kernel Context Switching
 KernelContext* KCSwitch(KernelContext*, void*, void*);
 KernelContext* KCCopy(KernelContext*, void*, void*);
 
-/********** Function Pseudocodes **********/
+
+
 
 
