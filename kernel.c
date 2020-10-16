@@ -5,10 +5,11 @@
 
 #include "hardware.h"
 #include "ykernel.h"
+#define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
+#define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
+#define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
 
 /************ Data Structs *********/
-
-void *interrupt_handlers[TRAP VECTOR SIZE]; // interrupt_handlers 
 
 typedef struct pcb {
   int pid;
@@ -30,27 +31,34 @@ typedef struct proc_table { // maybe a queue?
   pcb_t *head; //pointer to the head of the queue
 } proc_table_t;
 
-typedef struct free_frame_vec {
+typedef struct free_frame {
   int size; // available physical memory size
   char *bit_vector // pointer to a bit vector 
-} free_frame_vec_t;
+} free_frame_t;
 
-typedef struct reg1_pt { // userland page table
+typedef struct user_pt { // userland page table
   void *heap_low // end of data and start of heap
   void *heap_high // brk or the address just below brk?
   void *stack_low // top of the user stack
-  pte_t pt[]; // actual entries
-} reg1_pt_t;
+  pte_t pt[NUM_PAGES_1]; // actual entries
+} user_pt_t;
 
 typedef struct kernel_stack_pt { // kernel stack page_table
-  void *stack_low // top of the kernel stack
-  pte_t pt[]; // actual entries
+  pte_t pt[NUM_KSTACK_PAGES]; // actual entries
 } kernel_stack_pt_t;
 
-typedef struct kernel_heap_pt {
-  void *brk // to be modified by SetKernelBrk
-  pte_t pt[]; // actual entries
-} kernel_heap_pt_t;
+typedef kernel_global_pt { // includes code, data, heap
+  pte_t pt[NUM_PAGES_0]; // actual entries
+} kernel_global_pt_t;
+
+/************ Kernel Global Data **************/
+void *trap_handlers[TRAP VECTOR SIZE]; // interrupt_handlers 
+proc_table_t *proc_table;
+free_frame_t *free_frame;
+kernel_global_pt_t kernel_pt;
+void *kernel_brk // to be modified by SetKernelBrk
+
+
 
 /*********** Function Prototypes *********/
 
@@ -182,6 +190,55 @@ KernelContext* KCSwitch(KernelContext*, void*, void*);
 KernelContext* KCCopy(KernelContext*, void*, void*);
 
 
+int SetKernelBrk (void * addr) {
+  // check if addr is legal
+  //...
+  if (ReadRegister(REG_VM_ENABLE)) {
+    // do frame search stuff
+  } else {
+    kernel_brk = addr;
+    return 0;
+  }
+}
 
+void VM_setup(void *init_user_pt, void *init_kstack_pt) {
+  // write stuff 
+  WriteRegister(REG_PTBR0, (unsigned int) kernel_pt.pt);
+  WriteRegister(REG_PTLR0, (unsigned int) NUM_PAGES_0);
+  WriteRegister(REG_PTBR1, (unsigned int) init_user_pt->pt);
+  WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
+  // fill in the pagetable so that vpn = pfn
+  int base_page = VMEM_0_BASE >> PAGESHIFT, lim_page = VMEM_0_LIMIT >> PAGESHIFT;
+  // kernel pt
+  for (int vpn = base_page; pnum < lim_page; vpn++) {
+    if (vpn <= (kernel_brk >> PAGESHIFT) || vpn >= (KERNEL_STACK_LIMIT >> PAGESHIFT)) {
+      kernel_pt.pt[vpn - base_page].pfn = vpn; // pfn = vfn
+      kernel_pt.pt[vpn - base_page].valid = 1;
+      
+      update_free_frame() // to be done
+  }
+  // user pt
+  int ustack_base_vpn = VMEM_1_LIMIT >> PAGESHIFT - 1, 
 
+  init_user_pt->pt
+
+  
+
+}
+
+void KernelStart (char**, unsigned int, UserContext *) {
+  kernel_brk =  _kernel_orig_brk; // first thing first
+
+  free_frame = malloc(sizeof(free_tracker_t));
+  free_frame->bit_vector = malloc(pmem_size / PAGESIZE / (sizeof(char) << 3));
+
+  user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
+  kernel_stack_pt_t *init_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
+  
+
+  VM_setup(init_user_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
+  trap_setup(); // set up trap handlers
+  PCB_setup(init_reg1_pt); // set up PCB for the first process
+  start_idle(); // manipulate UserContext
+}
 
