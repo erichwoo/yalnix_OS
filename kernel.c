@@ -32,6 +32,7 @@ typedef struct proc_table { // maybe a queue?
 } proc_table_t;
 
 typedef struct free_frame {
+// tracking which frames in physical are free
   int size; // available physical memory size
   char *bit_vector // pointer to a bit vector 
 } free_frame_t;
@@ -60,7 +61,32 @@ void *kernel_brk // to be modified by SetKernelBrk
 
 
 
-/*********** Function Prototypes *********/
+// need some queue data struct to manage incoming pipe/lock/cond_var users
+// could possibly help with pcb management with proc_table
+typedef struct queue {
+  
+} queue_t;
+
+typedef struct pipe {
+  int id;
+  // buffer pointing to memory
+  lock_t lock;
+  // queue of blocked readers
+  // queue of blocked writers
+} pipe_t;
+  
+typedef struct lock {
+  int id;
+  // 0/1 locked or not
+  // queue of processes that want to acquire lock
+} lock_t;
+
+typedef struct cond_var {
+  int id;
+  // queue of waiting processes waiting for signal
+} cond_t;
+
+/*********** Function Prototypes and Commented Pseudocode *********/
 
 // Possibly useful functions:
 
@@ -87,16 +113,15 @@ so the hardware knows? is it uctxt?)
 */
 void PCB_setup();
 
-// Basic Process Coordination
+/////////////// Basic Process Coordination
 
 /* Create a new child pcb_t
  * assign new pid and its ppid
- * Copy region 1 page table
+ * Copy region 1 page table, uc, and kc
+ * state = ready
  * get new frames for kernel stack
  * copy region 0, change stack part to map to new frames above
- * state = ready
- * copy uc and kc
- * return (not sure how to get one return pid, other 0)
+ * return (not sure how to get one return pid, other 0. general regs in UC?)
  */
 int Fork (void);
 
@@ -131,26 +156,73 @@ int Brk (void *);
  */
 int Delay (int);
 
-// I/O Syscalls
+////////////// I/O Syscalls
+
+/* Check if TtyReceive has extra chars
+ * if not, state = block and wait for TrapTtyReceive to come in
+ * Once there are lines to receive, Collect TrapTtyReceive
+ * Validate buf based on len, return whatever necessary
+ *   - THought: should Trap handler call TtyRecieve or this funct
+ */
 int TtyRead (int, void *, int);
+
+/* Write with hardware funct TtyTransmit
+ * Validate error, and return whatever necessary
+ */
 int TtyWrite (int, void *, int);
 
-// IPC Syscalls
+//////////////// IPC Syscalls
+
+/* Initialize pipe_t with id, lock, queues*/
 int PipeInit (int *);
+
+/* Check if someone is reading/writing, block if so
+ * check if there are bytes to read from buffer, if not return.
+ * if so, acquire lock
+ * put pipe's contents into param buf
+ * release lock
+ */
 int PipeRead (int, void *, int);
+
+/* Check if someone is reading/writing, block if so
+ * acquire lock, write to pipe buffer (may need to reallocate buffer)
+ * release lock
+ */
 int PipeWrite (int, void *, int);
 
-// Synchronization Syscalls
+//////////// Synchronization Syscalls
+
+/* initialize new lock_t with its id, locked = 0, initialize queue */
 int LockInit (int *);
+
+/* if lock is locked
+ *      - add process to lock's queue, state = block
+ * if not
+ *      - make lock locked, take process off queue
+ */
 int Acquire (int);
+
+/* make lock variable 0, potentially signal the queue  */
 int Release (int);
+
+/* Initialize new cond_t with id*/
 int CvarInit (int *);
+
+/* Add process to cond_var's queue, state = block
+ * return once signaled
+ */
 int CvarWait (int, int);
+
+/* Signal the next process on cond_var queue */
 int CvarSignal (int);
+
+/* Signal all the processes on cond_var queue */
 int CvarBroadcast (int);
+
+/* free and remove all memory in the pipe/lock/condvar of the given id*/
 int Reclaim (int);
 
-// Traps
+//////////////// Traps
 
 // Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *);
@@ -163,6 +235,8 @@ void TrapMemory(UserContext *);
 // Abort
 void TrapMath(UserContext *);
 // Read input and store in buffer; set a flag that wakes up blocked process waiting for input
+// allocate kheap with buf for len (how do we know how long input line is?)
+// use TtyReceive() hardware function to collect into buf
 void TrapTtyReceive(UserContext *);
 // Start next transmission; resumes blocked process
 void TrapTtyTransmit(UserContext *);
@@ -188,6 +262,7 @@ void KernelStart (char**, unsigned int, UserContext *);
 // Kernel Context Switching
 KernelContext* KCSwitch(KernelContext*, void*, void*);
 KernelContext* KCCopy(KernelContext*, void*, void*);
+
 
 
 int SetKernelBrk (void * addr) {
