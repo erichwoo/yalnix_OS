@@ -8,7 +8,13 @@
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
 #define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
-
+#define BASE_PAGE_0 (VMEM_0_BASE >> PAGESHIFT) // starting page num of reg 0
+#define LIM_PAGE_0 (VMEM_0_LIMIT >> PAGESHIFT) // first page above reg 0 
+#define BASE_PAGE_1 (VMEM_1_BASE >> PAGESHIFT) // starting page num of reg 1
+#define LIM_PAGE_1 (VMEM_1_LIMIT >> PAGESHIFT) // first page above reg 1 
+#define BASE_KSTACK (KERNEL_STACK_BASE >> PAGESHIFT)
+#define LIM_KSTACK (KERNEL_STACK_LIMIT >> PAGESHIFT)
+#define BASE_FRAME (PMEM_BASE >> PAGESHIFT)
 /************ Data Structs *********/
 
 typedef struct pcb {
@@ -31,10 +37,11 @@ typedef struct proc_table { // maybe a queue?
   pcb_t *head; //pointer to the head of the queue
 } proc_table_t;
 
-typedef struct free_frame {
+typedef struct f_frame{
 // tracking which frames in physical are free
-  int size; // available physical memory size
+  unsigned int size; // available number of physical frames
   char *bit_vector // pointer to a bit vector 
+  unsigned int avail_pfn; // next available pfn
 } free_frame_t;
 
 typedef struct user_pt { // userland page table
@@ -54,11 +61,11 @@ typedef kernel_global_pt { // includes code, data, heap
 
 /************ Kernel Global Data **************/
 void *trap_handlers[TRAP VECTOR SIZE]; // interrupt_handlers 
-proc_table_t *proc_table;
-free_frame_t *free_frame;
+proc_table_t *proc_table = {0, NULL};
+free_frame_t free_frame = {0, NULL, 0};
 kernel_global_pt_t kernel_pt;
-void *kernel_brk // to be modified by SetKernelBrk
-
+void *kernel_brk = NULL; // to be modified by SetKernelBrk
+void *kernel_data_end = NULL;
 
 
 // need some queue data struct to manage incoming pipe/lock/cond_var users
@@ -263,16 +270,61 @@ void KernelStart (char**, unsigned int, UserContext *);
 KernelContext* KCSwitch(KernelContext*, void*, void*);
 KernelContext* KCCopy(KernelContext*, void*, void*);
 
+void set_pte (pte_t *pte, int valid, int pfn, int prot) {
+  if (!(pte->valid = valid)) return;
+  pte->pfn = pfn;
+  pte->prot = prot;
+}
 
+int get_bit(char *bit_array, int index) {
+  
+}
 
-int SetKernelBrk (void * addr) {
-  // check if addr is legal
-  //...
+int SetKernelBrk (void *addr) {
+  if (addr >= KERNEL_STACK_BASE || addr < kernel_data_end) return -1;
+
   if (ReadRegister(REG_VM_ENABLE)) {
     // do frame search stuff
+    int vpn = kernel_brk >> PAGESHIFT;
+    while  (!kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].valid) {
+      kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].valid = 1;
+      kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].pfn = find_free_frame();
+      update_free_frame(kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].pfn, 1);
+    }
+  } 
+  kernel_brk = addr;
+  return 0;
+}
+
+void update_free_frame(int pfn, int on) { // on =1 means turn on a bit. = 0 means turn off
+  int cell = (pfn - BASE_FRAME) / (sizeof(char) << 3);
+  int offset = (pfn - BASE_FRAME) % (sizeof(char) << 3);
+  char mask = (char) (1 << offset);
+  if (on) {
+    free_frame.bit_vector[cell] |=  mask;
   } else {
-    kernel_brk = addr;
-    return 0;
+    free_frame.bit_vector[cell] &=  ~mask;
+  }
+}
+
+int find_free_frame() { // find a free physical frame, returns pfn
+  for (int i = 0; i < free_frame.size; i++) {
+    char c = free_frame.bit_vector[i];
+    if (c & (^((char) 0)) != ^((char) 0)) {
+      for (j = 0; j < sizeof(char); j++) {
+        if ((c | (char) (1 << j)) == 0) {
+          return BASE_FRAME + i * sizeof(char) + j;
+        }
+      }
+    }
+  }
+  return -1;
+}
+
+// set all valid bit to zero
+void init_reg1(user_pt_t* pt1) {
+  for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
+    pt1->pt[vpn - BASE_PAGE_1].valid = 0;
   }
 }
 
@@ -283,29 +335,38 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   WriteRegister(REG_PTBR1, (unsigned int) init_user_pt->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   // fill in the pagetable so that vpn = pfn
-  int base_page = VMEM_0_BASE >> PAGESHIFT, lim_page = VMEM_0_LIMIT >> PAGESHIFT;
   // kernel pt
-  for (int vpn = base_page; pnum < lim_page; vpn++) {
-    if (vpn <= (kernel_brk >> PAGESHIFT) || vpn >= (KERNEL_STACK_LIMIT >> PAGESHIFT)) {
-      kernel_pt.pt[vpn - base_page].pfn = vpn; // pfn = vfn
-      kernel_pt.pt[vpn - base_page].valid = 1;
-      
-      update_free_frame() // to be done
+
+  // TODO: change code section to protected
+  for (int vpn = BASE_PAGE_0; vpn < LIM_PAGE_0; vpn++) {
+    if (vpn <= (kernel_brk >> PAGESHIFT) || vpn >= BASE_KSTACK) {
+      kernel_pt.pt[vpn - BASE_PAGE_0].pfn = vpn; // pfn = vfn
+      kernel_pt.pt[vpn - BASE_PAGE_0].valid = 1;
+      kernel_pt.pt[vpn - BASE_PAGE_0].prot = PROT_ALL;
+      update_free_frame(vpn, 0) // to be done
+      if (vpn >= BASE_KSTACK) {
+        init_kstack_pt->pt[vpn - BASE_KSTACK] = kernel_pt.pt[vpn - BASE_PAGE_0];
+      }
+    } else {
+      kernel_pt.pt[vpn - BASE_PAGE_0].valid = 0;
+    }
   }
   // user pt
-  int ustack_base_vpn = VMEM_1_LIMIT >> PAGESHIFT - 1, 
+  init_reg1(init_user_pt);
+  int stack_page = LIM_PAGE_1 - 1 - BASE_PAGE_1;
+  init_user_pt->pt[stack_page].valid = 1;
+  init_user_pt->pt[stack_page].prot = PROT_ALL;
+  init_user_pt->pt[stack_page].pfn = find_free_frame();
+  update_free_frame(init_user_pt->pt[stack_page].pfn);
 
-  init_user_pt->pt
-
-  
+  WriteRegister(REG_VM_ENABLE, 1)
 
 }
 
 void KernelStart (char**, unsigned int, UserContext *) {
   kernel_brk =  _kernel_orig_brk; // first thing first
-
-  free_frame = malloc(sizeof(free_tracker_t));
-  free_frame->bit_vector = malloc(pmem_size / PAGESIZE / (sizeof(char) << 3));
+  kernel_data_end = _kernel_data_end
+  free_frame.bit_vector = malloc(pmem_size / (PAGESIZE * (sizeof(char) << 3)) + 1);
 
   user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
   kernel_stack_pt_t *init_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
@@ -313,7 +374,7 @@ void KernelStart (char**, unsigned int, UserContext *) {
 
   VM_setup(init_user_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
   trap_setup(); // set up trap handlers
-  PCB_setup(init_reg1_pt); // set up PCB for the first process
+  PCB_setup(init_user_pt, init_kstack_pt); // set up PCB for the first process
   start_idle(); // manipulate UserContext
 }
 
