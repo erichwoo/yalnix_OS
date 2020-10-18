@@ -3,11 +3,23 @@
  * Kernel functionality
  */
 
+#include "ctype.h"
+#include "filesystem.h"
 #include "hardware.h"
+#include "load_info.h"
+#include "yalnix.h"
 #include "ykernel.h"
+#include "ylib.h"
+#include "yuser.h"
+
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
 #define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
+#define TERMINATED -1
+#define RUNNING 0
+#define READY 1
+#define BLOCKED 2
+#define DEFUNCT 3
 
 /************ Data Structs *********/
 
@@ -16,7 +28,7 @@ typedef struct pcb {
   int ppid;
   // possibly pcb_t* children?
   int state;
-  int status;
+  int exit_status;
   // address space
   reg1_pt_t *reg1; // region 1 page table management
   kernel_stack_pt_t *k_stack; // copy of kernel stack page table
@@ -38,9 +50,9 @@ typedef struct free_frame {
 } free_frame_t;
 
 typedef struct user_pt { // userland page table
-  void *heap_low // end of data and start of heap
-  void *heap_high // brk or the address just below brk?
-  void *stack_low // top of the user stack
+  void *heap_low; // end of data and start of heap
+  void *heap_high; // brk or the address just below brk?
+  void *stack_low; // top of the user stack
   pte_t pt[NUM_PAGES_1]; // actual entries
 } user_pt_t;
 
@@ -48,7 +60,7 @@ typedef struct kernel_stack_pt { // kernel stack page_table
   pte_t pt[NUM_KSTACK_PAGES]; // actual entries
 } kernel_stack_pt_t;
 
-typedef kernel_global_pt { // includes code, data, heap
+typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
 } kernel_global_pt_t;
 
@@ -57,9 +69,7 @@ void *trap_handlers[TRAP VECTOR SIZE]; // interrupt_handlers
 proc_table_t *proc_table;
 free_frame_t *free_frame;
 kernel_global_pt_t kernel_pt;
-void *kernel_brk // to be modified by SetKernelBrk
-
-
+void *kernel_brk; // to be modified by SetKernelBrk
 
 // need some queue data struct to manage incoming pipe/lock/cond_var users
 // could possibly help with pcb management with proc_table
@@ -263,8 +273,6 @@ void KernelStart (char**, unsigned int, UserContext *);
 KernelContext* KCSwitch(KernelContext*, void*, void*);
 KernelContext* KCCopy(KernelContext*, void*, void*);
 
-
-
 int SetKernelBrk (void * addr) {
   // check if addr is legal
   //...
@@ -290,30 +298,63 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
       kernel_pt.pt[vpn - base_page].pfn = vpn; // pfn = vfn
       kernel_pt.pt[vpn - base_page].valid = 1;
       
-      update_free_frame() // to be done
+      update_free_frame(); // to be done
+    }
   }
   // user pt
-  int ustack_base_vpn = VMEM_1_LIMIT >> PAGESHIFT - 1, 
+    //  int ustack_base_vpn = VMEM_1_LIMIT >> PAGESHIFT - 1, 
 
-  init_user_pt->pt
-
-  
-
+    //  init_user_pt->pt
 }
 
-void KernelStart (char**, unsigned int, UserContext *) {
-  kernel_brk =  _kernel_orig_brk; // first thing first
+void trap_setup(void) {
+  
+}
 
+void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
+  // initialize pcb struct and assign values
+  pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
+  pcb->pid = helper_new_pid(user_pt);
+  pcb->ppid = ppid;
+  pcb->state = READY;
+  pcb->exit_status = 0; // will be changed if process error or return value needed
+  pcb->reg1 = user_pt;
+  pcb->k_stack = k_stack_pt;
+  pcb->uc = uc;
+  // add to proc_table here
+  // for now since proc_table structure isn't decided, will add to head.
+  proc_table->head = pcb;
+  //return pcb->pid;
+}
+
+void DoIdle(void) {
+  while(1) {
+    TracePrintf(1,"DoIdle\n");
+    Pause();
+  }
+}
+
+void idle_setup(void) {
+  pcb_t* idle = proc_table->head;
+  idle->uc->pc = &DoIdle; // point to doIdle(); hopefully right way to do this
+  idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
+}
+
+void KernelStart (char *cmd args[], unsigned int pmem size, UserContext *uctxt) {
+  kernel_brk =  _kernel_orig_brk; // first thing first
+  
   free_frame = malloc(sizeof(free_tracker_t));
   free_frame->bit_vector = malloc(pmem_size / PAGESIZE / (sizeof(char) << 3));
 
   user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
   kernel_stack_pt_t *init_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
-  
+
+  proc_table = (proc_table_t*) malloc(sizeof(proc_table_t));
 
   VM_setup(init_user_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
   trap_setup(); // set up trap handlers
-  PCB_setup(init_reg1_pt); // set up PCB for the first process
-  start_idle(); // manipulate UserContext
+  PCB_setup(-1, init_user_pt, init_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
+  idle_setup(); // manipulate UserContext
+  // idle begins when KernelStart returns
 }
 
