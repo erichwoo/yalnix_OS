@@ -74,8 +74,10 @@ typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
 } kernel_global_pt_t;
 
+typedef void (*trap_handler_t) (UserContext uc); // defining an arbitrary trap handler function
+
 /************ Kernel Global Data **************/
-void (*trap_handler[TRAP_VECTOR_SIZE]) (UserContext uc); // array of pointers to trap handler functs 
+trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs 
 proc_table_t *proc_table = {0, NULL};
 free_frame_t free_frame = {0, NULL, 0};
 kernel_global_pt_t kernel_pt;
@@ -264,7 +266,6 @@ void TrapTtyTransmit(UserContext *uc);
 // TBD
 void TrapDisk(UserContext *uc);
 
-
 // Modify kernel page table:
 // The kernel keeps a separate copy of each process's kernel stack page table,
 // and copy them when switching context.
@@ -285,6 +286,7 @@ void KernelStart (char *cmd args[], unsigned int pmem size, UserContext *uctxt);
 KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p);
 KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used);
 
+/*********************** Functions ***********************/
 void set_pte (pte_t *pte, int valid, int pfn, int prot) {
   if (!(pte->valid = valid)) return;
   pte->pfn = pfn;
@@ -351,7 +353,6 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   // fill in the pagetable so that vpn = pfn
   // kernel pt
-<<<<<<< HEAD
 
   // TODO: change code section to protected
   for (int vpn = BASE_PAGE_0; vpn < LIM_PAGE_0; vpn++) {
@@ -378,21 +379,44 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   WriteRegister(REG_VM_ENABLE, 1);
 }
 
+// Examine the "code" field of user context and decide which syscall to invoke
+void TrapKernel(UserContext *uc) {
+  Traceprintf("The code of syscall is 0x%x\n", uc->code);
+}
+// Check the process table to decide which process to schedule; initialize a context switch if necessary
+void TrapClock(UserContext *uc) {
+  Traceprintf(1, "Clock Trap occured!\n");
+}
+// temporary trap handler funct for all the unhandled traps. 
+void TrapTemp(UserContext *uc) {
+  Traceprintf(1, "This trap type %d is currently unhandled\n", uc->vector);
+}
+
 void trap_setup(void) {
   // hookup trap handler funct pointers to the handler table
-  trap_handler[TRAP_KERNEL] = TrapKernel;
-  trap_handler[TRAP_CLOCK] = TrapClock;
-  trap_handler[TRAP_ILLEGAL] = TrapIllegal;
-  trap_handler[TRAP_MEMORY] = TrapMemory;
-  trap_handler[TRAP_MATH] = TrapMath;
-  trap_handler[TRAP_TTY_RECEIVE] = TrapTtyReceive;
-  trap_handler[TRAP_TTY_TRANSMIT] = TrapTtyTransmit;
-  trap_handler[TRAP_DISK] = TrapDisk;
+  trap_vector[TRAP_KERNEL] = TrapKernel;
+  trap_vector[TRAP_CLOCK] = TrapClock;
+  /*
+  trap_vector[TRAP_ILLEGAL] = TrapIllegal;
+  trap_vector[TRAP_MEMORY] = TrapMemory;
+  trap_vector[TRAP_MATH] = TrapMath;
+  trap_vector[TRAP_TTY_RECEIVE] = TrapTtyReceive;
+  trap_vector[TRAP_TTY_TRANSMIT] = TrapTtyTransmit;
+  trap_vector[TRAP_DISK] = TrapDisk;
+  */
+  // temporarily map rest of traps to TrapTemp until we handle them
+  int rest_of_traps[] = {TRAP_ILLEGAL, TRAP_MEMORY, TRAP_MATH, TRAP_TTY_RECEIVE, TRAP_TTY_TRANSMIT, TRAP_DISK};
+  int i;
+  for (i = 0; i < 6; i++)
+    trap_vector[rest_of_traps[i]] = TrapTemp;
 
   // NULL the remaining spaces in handler table (8-15)
   int null_trap;
   for (null_trap = TRAP_DISK + 1; null_trap < TRAP_VECTOR_SIZE; null_trap++) 
-    trap_handler[null_trap] = NULL;
+    trap_vector[null_trap] = NULL;
+
+  // write handler table to register
+  WriteRegister(REG_VECTOR_BASE, (unsigned int) &trap_vector);
 }
 
 void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
