@@ -34,7 +34,6 @@
 #define BLOCKED 2
 #define DEFUNCT 3
 
-
 /************ Data Structs *********/
 
 typedef struct pcb {
@@ -81,12 +80,11 @@ typedef struct kernel_global_pt { // includes code, data, heap
 } kernel_global_pt_t;
 
 /************ Kernel Global Data **************/
-void *trap_handlers[TRAP_VECTOR_SIZE]; // interrupt_handlers 
+void (*trap_handler[TRAP_VECTOR_SIZE]) (UserContext uc); // array of pointers to trap handler functs 
 proc_table_t *proc_table = {0, NULL};
 free_frame_t free_frame = {0, NULL, BASE_FRAME, 0};
 kernel_global_pt_t kernel_pt;
 void *kernel_brk = NULL; // to be modified by SetKernelBrk
-
 
 // need some queue data struct to manage incoming pipe/lock/cond_var users
 // could possibly help with pcb management with proc_table
@@ -150,17 +148,17 @@ void PCB_setup();
  * copy region 0, change stack part to map to new frames above
  * return (not sure how to get one return pid, other 0. general regs in UC?)
  */
-int Fork (void);
+int KernelFork (void);
 
 /* Load Program with exec args and pcb_t  */
-int Exec (char *, char **);
+int KernelExec (char *filename, char **argvec);
 
 /* assign status & state = zombie
  * free anything malloc'd in pcb. 
  * if parent is dead(not in proc table), remove from proc table
  * otherwise, leave it in proc table 
  */
-void Exit (int);
+void KernelExit (int status);
 
 /* Loop through children, removing dead children along the way
  * if there is zombie, return zombie pid and edit status_ptr if nonNULL
@@ -168,20 +166,20 @@ void Exit (int);
  *      - loop again after some time? or somehow a child signals its exit
  * if no/all-dead children, return error
  */
-int Wait (int *);
+int KernelWait (int *status_ptr);
 
 /* Return pid from current pcb*/
-int GetPid (void);
+int KernelGetPid (void);
 
 /* Check if heap will shrink below to user data or stack or invalid, error if so
  * add or remove page table entries depending on if addr is above or below current brk
  */
-int Brk (void *);
+int KernelBrk (void *addr);
 
 /* clock_ticks < 1 error checked
  * status = block, track hardware clock trap, after x time
  */
-int Delay (int);
+int KernelDelay (int clock_ticks);
 
 ////////////// I/O Syscalls
 
@@ -191,17 +189,17 @@ int Delay (int);
  * Validate buf based on len, return whatever necessary
  *   - THought: should Trap handler call TtyRecieve or this funct
  */
-int TtyRead (int, void *, int);
+int KernelTtyRead (int tty_id, void *buf, int len);
 
 /* Write with hardware funct TtyTransmit
  * Validate error, and return whatever necessary
  */
-int TtyWrite (int, void *, int);
+int KernelTtyWrite (int tty_id, void *buf, int len);
 
 //////////////// IPC Syscalls
 
 /* Initialize pipe_t with id, lock, queues*/
-int PipeInit (int *);
+int KernelPipeInit (int *pipe_idp);
 
 /* Check if someone is reading/writing, block if so
  * check if there are bytes to read from buffer, if not return.
@@ -209,66 +207,66 @@ int PipeInit (int *);
  * put pipe's contents into param buf
  * release lock
  */
-int PipeRead (int, void *, int);
+int KernelPipeRead (int pipe_id, void *buf, int len);
 
 /* Check if someone is reading/writing, block if so
  * acquire lock, write to pipe buffer (may need to reallocate buffer)
  * release lock
  */
-int PipeWrite (int, void *, int);
+int KernelPipeWrite (int pipe_id, void *buf, int len);
 
 //////////// Synchronization Syscalls
 
 /* initialize new lock_t with its id, locked = 0, initialize queue */
-int LockInit (int *);
+int KernelLockInit (int *lock_idp);
 
 /* if lock is locked
  *      - add process to lock's queue, state = block
  * if not
  *      - make lock locked, take process off queue
  */
-int Acquire (int);
+int KernelAcquire (int lock_id);
 
 /* make lock variable 0, potentially signal the queue  */
-int Release (int);
+int KernelRelease (int lock_id);
 
 /* Initialize new cond_t with id*/
-int CvarInit (int *);
+int KernelCvarInit (int *cvar_idp);
 
 /* Add process to cond_var's queue, state = block
  * return once signaled
  */
-int CvarWait (int, int);
+int KernelCvarWait (int cvar_id, int lock_id);
 
 /* Signal the next process on cond_var queue */
-int CvarSignal (int);
+int KernelCvarSignal (int cvar_id);
 
 /* Signal all the processes on cond_var queue */
-int CvarBroadcast (int);
+int KernelCvarBroadcast (int cvar_id);
 
 /* free and remove all memory in the pipe/lock/condvar of the given id*/
-int Reclaim (int);
+int KernelReclaim (int id);
 
 //////////////// Traps
 
 // Examine the "code" field of user context and decide which syscall to invoke
-void TrapKernel(UserContext *);
+void TrapKernel(UserContext *uc);
 // Check the process table to decide which process to schedule; initialize a context switch if necessary
-void TrapClock(UserContext *);
+void TrapClock(UserContext *uc);
 // Abort current process, switch context
-void TrapIllegal(UserContext *);
+void TrapIllegal(UserContext *uc);
 // Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation
-void TrapMemory(UserContext *);
+void TrapMemory(UserContext *uc);
 // Abort
-void TrapMath(UserContext *);
+void TrapMath(UserContext *uc);
 // Read input and store in buffer; set a flag that wakes up blocked process waiting for input
 // allocate kheap with buf for len (how do we know how long input line is?)
 // use TtyReceive() hardware function to collect into buf
-void TrapTtyReceive(UserContext *);
+void TrapTtyReceive(UserContext *uc);
 // Start next transmission; resumes blocked process
-void TrapTtyTransmit(UserContext *);
+void TrapTtyTransmit(UserContext *uc);
 // TBD
-void TrapDisk(UserContext *);
+void TrapDisk(UserContext *uc);
 
 
 // Modify kernel page table:
@@ -277,18 +275,19 @@ void TrapDisk(UserContext *);
 // The bottom half of the page table shall remain the same,
 // only to be touched by SetKernelBrk.
 // This means all process's will be given the same region0 PTBR?
-int SetKernelBrk (void *);
+int SetKernelBrk (void *addr);
 
 /*
 1. call VM_setup to set up virtual memory
 2. set up trap table
 3. call PCB_setup to configure idle
 */
-void KernelStart (char**, unsigned int, UserContext *);
+void KernelStart (char *cmd args[], unsigned int pmem size, UserContext *uctxt);
 
 // Kernel Context Switching
-KernelContext* KCSwitch(KernelContext*, void*, void*);
-KernelContext* KCCopy(KernelContext*, void*, void*);
+
+KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p);
+KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used);
 
 void set_pte (pte_t *pte, int valid, int pfn, int prot) {
   if (!(pte->valid = valid)) return; // turn off valid bit, others don't matter
@@ -312,10 +311,11 @@ void set_bit(unsigned char *bit_array, int index, int bit) {
   }
 }
 
-void vacate_frame(unsigned int pfn) { // mark pfn as free
+int vacate_frame(unsigned int pfn) { // mark pfn as free
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 0);
   free_frame.filled--;
   if (pfn < free_frame.avail_pfn) free_frame.avail_pfn = pfn;
+  return pfn;
 }
 
 int get_frame(unsigned int pfn, int auto) { // find a free physical frame, returns pfn
@@ -346,7 +346,7 @@ int SetKernelBrk (void *addr) {
     } else if (next_brk < curr_brk) {
       // theoretically doesn't have to do anything, but freeing frames nonetheless
       for (int vpn = curr_brk_vpn; vpn > next_brk_vpn; vpn--) {
-        set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, NONE, NONE);
+        set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, vacate_frame(kernel_pt.pt[vpn - BASE_PAGE_0].pfn), NONE);
       }
     }
   } 
@@ -387,6 +387,23 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   WriteRegister(REG_VM_ENABLE, 1);
 }
 
+void trap_setup(void) {
+  // hookup trap handler funct pointers to the handler table
+  trap_handler[TRAP_KERNEL] = TrapKernel;
+  trap_handler[TRAP_CLOCK] = TrapClock;
+  trap_handler[TRAP_ILLEGAL] = TrapIllegal;
+  trap_handler[TRAP_MEMORY] = TrapMemory;
+  trap_handler[TRAP_MATH] = TrapMath;
+  trap_handler[TRAP_TTY_RECEIVE] = TrapTtyReceive;
+  trap_handler[TRAP_TTY_TRANSMIT] = TrapTtyTransmit;
+  trap_handler[TRAP_DISK] = TrapDisk;
+
+  // NULL the remaining spaces in handler table (8-15)
+  int null_trap;
+  for (null_trap = TRAP_DISK + 1; null_trap < TRAP_VECTOR_SIZE; null_trap++) 
+    trap_handler[null_trap] = NULL;
+}
+
 void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
   // initialize pcb struct and assign values
   pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
@@ -412,7 +429,7 @@ void DoIdle(void) {
 
 void idle_setup(void) {
   pcb_t* idle = proc_table->head;
-  idle->uc->pc = &DoIdle; // point to doIdle(); hopefully right way to do this
+  idle->uc->pc = DoIdle; // point to doIdle();
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
 }
 
@@ -434,6 +451,5 @@ void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt) 
   PCB_setup(-1, init_user_pt, init_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(); // manipulate UserContext
   // idle begins when KernelStart returns
-
 }
 
