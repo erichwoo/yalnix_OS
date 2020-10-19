@@ -15,14 +15,18 @@
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
 #define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
-
 #define BASE_PAGE_0 (VMEM_0_BASE >> PAGESHIFT) // starting page num of reg 0
 #define LIM_PAGE_0 (VMEM_0_LIMIT >> PAGESHIFT) // first page above reg 0 
 #define BASE_PAGE_1 (VMEM_1_BASE >> PAGESHIFT) // starting page num of reg 1
 #define LIM_PAGE_1 (VMEM_1_LIMIT >> PAGESHIFT) // first page above reg 1 
-#define BASE_KSTACK (KERNEL_STACK_BASE >> PAGESHIFT)
-#define LIM_KSTACK (KERNEL_STACK_LIMIT >> PAGESHIFT)
+#define BASE_PAGE_KSTACK (KERNEL_STACK_BASE >> PAGESHIFT)
+#define LIM_PAGE_KSTACK (KERNEL_STACK_LIMIT >> PAGESHIFT)
 #define BASE_FRAME (PMEM_BASE >> PAGESHIFT)
+#define CELL_SIZE (sizeof(char) << 3)
+
+#define AUTO 1
+#define FIXED 0
+#define NONE 0
 
 #define TERMINATED -1
 #define RUNNING 0
@@ -54,9 +58,10 @@ typedef struct proc_table { // maybe a queue?
 
 typedef struct f_frame{
 // tracking which frames in physical are free
-  unsigned int size; // available number of physical frames
-  char *bit_vector // pointer to a bit vector 
+  int size; // available number of physical frames
+  unsigned char *bit_vector // pointer to a bit vector 
   unsigned int avail_pfn; // next available pfn
+  int filled;
 } free_frame_t;
 
 typedef struct user_pt { // userland page table
@@ -79,10 +84,9 @@ typedef void (*trap_handler_t) (UserContext uc); // defining an arbitrary trap h
 /************ Kernel Global Data **************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs 
 proc_table_t *proc_table = {0, NULL};
-free_frame_t free_frame = {0, NULL, 0};
+free_frame_t free_frame = {0, NULL, BASE_FRAME, 0};
 kernel_global_pt_t kernel_pt;
 void *kernel_brk = NULL; // to be modified by SetKernelBrk
-void *kernel_data_end = NULL;
 
 // need some queue data struct to manage incoming pipe/lock/cond_var users
 // could possibly help with pcb management with proc_table
@@ -288,62 +292,71 @@ KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used);
 
 /*********************** Functions ***********************/
 void set_pte (pte_t *pte, int valid, int pfn, int prot) {
-  if (!(pte->valid = valid)) return;
+  if (!(pte->valid = valid)) return; // turn off valid bit, others don't matter
   pte->pfn = pfn;
   pte->prot = prot;
 }
 
-int get_bit(char *bit_array, int index) {
-  
+int get_bit(unsigned char *bit_array, int index) {
+  int cell = index / CELL_SIZE;
+  int offset = index % CELL_SIZE;
+  return (bit_array[cell] & (1 << offset) == 0? 0: 1);
+}
+
+void set_bit(unsigned char *bit_array, int index, int bit) {
+  int cell = index / CELL_SIZE;
+  int offset = index % CELL_SIZE;
+  if (bit) {
+    bit_array[cell] |= (1 << offset);
+  } else {
+    bit_array[cell] &= ~(1 << offset);
+  }
+}
+
+int vacate_frame(unsigned int pfn) { // mark pfn as free
+  set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 0);
+  free_frame.filled--;
+  if (pfn < free_frame.avail_pfn) free_frame.avail_pfn = pfn;
+  return pfn;
+}
+
+int get_frame(unsigned int pfn, int auto) { // find a free physical frame, returns pfn
+  if (free_frame.filled >= free_frame.size) return ERROR;
+  if (auto) {
+    pfn = free_frame.avail_pfn;
+  }
+  set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 1);
+  free_frame.filled++;
+  // find next free 
+  if (pfn == free_frame.avail_pfn) {
+    for (int n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++);
+    free_frame.avail_pfn = n_pfn;
+  }
+  return pfn;
 }
 
 int SetKernelBrk (void *addr) {
-  if (addr >= KERNEL_STACK_BASE || addr < kernel_data_end) return -1;
+  if ((unsigned int) addr >= DOWN_TO_PAGE(KERNEL_STACK_BASE) ||(unsigned int) addr <= UP_TO_PAGE((unsigned int) _kernel_data_end - 1)) return ERROR;
 
   if (ReadRegister(REG_VM_ENABLE)) {
-    // do frame search stuff
-    int vpn = kernel_brk >> PAGESHIFT;
-    while  (!kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].valid) {
-      kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].valid = 1;
-      kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].pfn = find_free_frame();
-      update_free_frame(kernel_pt.pt[addr >> PAGESHIFT - BASE_PAGE_0].pfn, 1);
+    unsigned int curr_brk_vpn = (unsigned int) kernel_brk >> PAGESHIFT;
+    unsigned int next_brk_vpn = (unsigned int) addr >> PAGESHIFT;
+    if (next_brk_vpn > curr_brk_vpn) {
+      for (int vpn = curr_brk_vpn + 1; vpn <= next_brk_vpn; vpn++) {
+        set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
+      }
+    } else if (next_brk < curr_brk) {
+      // theoretically doesn't have to do anything, but freeing frames nonetheless
+      for (int vpn = curr_brk_vpn; vpn > next_brk_vpn; vpn--) {
+        set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, vacate_frame(kernel_pt.pt[vpn - BASE_PAGE_0].pfn), NONE);
+      }
     }
   } 
   kernel_brk = addr;
   return 0;
 }
 
-void update_free_frame(int pfn, int on) { // on =1 means turn on a bit. = 0 means turn off
-  int cell = (pfn - BASE_FRAME) / (sizeof(char) << 3);
-  int offset = (pfn - BASE_FRAME) % (sizeof(char) << 3);
-  char mask = (char) (1 << offset);
-  if (on) {
-    free_frame.bit_vector[cell] |=  mask;
-  } else {
-    free_frame.bit_vector[cell] &=  ~mask;
-  }
-}
 
-int find_free_frame() { // find a free physical frame, returns pfn
-  for (int i = 0; i < free_frame.size; i++) {
-    char c = free_frame.bit_vector[i];
-    if (c & (^((char) 0)) != ^((char) 0)) {
-      for (j = 0; j < sizeof(char); j++) {
-        if ((c | (char) (1 << j)) == 0) {
-          return BASE_FRAME + i * sizeof(char) + j;
-        }
-      }
-    }
-  }
-  return -1;
-}
-
-// set all valid bit to zero
-void init_reg1(user_pt_t* pt1) {
-  for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
-    pt1->pt[vpn - BASE_PAGE_1].valid = 0;
-  }
-}
 
 void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   // write stuff 
@@ -356,25 +369,22 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
 
   // TODO: change code section to protected
   for (int vpn = BASE_PAGE_0; vpn < LIM_PAGE_0; vpn++) {
-    if (vpn <= (kernel_brk >> PAGESHIFT) || vpn >= BASE_KSTACK) {
-      kernel_pt.pt[vpn - BASE_PAGE_0].pfn = vpn; // pfn = vfn
-      kernel_pt.pt[vpn - BASE_PAGE_0].valid = 1;
-      kernel_pt.pt[vpn - BASE_PAGE_0].prot = PROT_ALL;
-      update_free_frame(vpn, 0) // to be done
-      if (vpn >= BASE_KSTACK) {
-        init_kstack_pt->pt[vpn - BASE_KSTACK] = kernel_pt.pt[vpn - BASE_PAGE_0];
-      }
+    if (vpn <= (unsigned int) _kernel_data_start >> PAGESHIFT) {
+      set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(vpn, FIXED), PROT_READ|PROT_EXEC);
+    } else if (vpn <= (unsigned int) kernel_brk >> PAGESHIFT) {
+      set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(vpn, FIXED), PROT_READ|PROT_WRITE);
+    } else if (vpn >= BASE_PAGE_KSTACK) {
+      set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(vpn, FIXED), PROT_READ|PROT_WRITE);
+      init_kstack_pt->pt[vpn - BASE_PAGE_KSTACK] = kernel_pt.pt[vpn - BASE_PAGE_0];
     } else {
-      kernel_pt.pt[vpn - BASE_PAGE_0].valid = 0;
-    }
+      set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, NONE, NONE);
   }
   // user pt
-  init_reg1(init_user_pt);
-  int stack_page = LIM_PAGE_1 - 1 - BASE_PAGE_1;
-  init_user_pt->pt[stack_page].valid = 1;
-  init_user_pt->pt[stack_page].prot = PROT_ALL;
-  init_user_pt->pt[stack_page].pfn = find_free_frame();
-  update_free_frame(init_user_pt->pt[stack_page].pfn);
+  for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
+    set_pte(&init_user_pt->pt[vpn - BASE_PAGE_1], 0, NONE, NONE);
+  }
+  unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
+  set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_EXEC);
 
   WriteRegister(REG_VM_ENABLE, 1);
 }
@@ -448,10 +458,13 @@ void idle_setup(void) {
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
 }
 
-void KernelStart (char *cmd args[], unsigned int pmem size, UserContext *uctxt) {
+void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt) {
+  // initialize vital global data structures
   kernel_brk =  _kernel_orig_brk; // first thing first
-  kernel_data_end = _kernel_data_end
-  free_frame.bit_vector = malloc(pmem_size / (PAGESIZE * (sizeof(char) << 3)) + 1);
+
+  free_frame.size = pmem_size / PAGESIZE;
+  free_frame.bit_vector = malloc(free_frame.size / CELL_SIZE + 1);
+
 
   user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
   kernel_stack_pt_t *init_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
