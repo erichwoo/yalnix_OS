@@ -202,7 +202,7 @@ void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
 
   // TODO: change code section to protected
   for (int vpn = BASE_PAGE_0; vpn < LIM_PAGE_0; vpn++) {
-    if (vpn <= (unsigned int) _kernel_data_start >> PAGESHIFT) {
+    if (vpn < (unsigned int) _kernel_data_start >> PAGESHIFT) {
       set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(vpn, FIXED), PROT_READ|PROT_EXEC);
     } else if (vpn <= (unsigned int) kernel_brk >> PAGESHIFT) {
       set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(vpn, FIXED), PROT_READ|PROT_WRITE);
