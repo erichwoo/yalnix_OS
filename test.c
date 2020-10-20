@@ -264,7 +264,7 @@ void trap_setup(void) {
     trap_vector[null_trap] = NULL;
 
   // write handler table to register
-  WriteRegister(REG_VECTOR_BASE, (unsigned int) &trap_vector);
+  WriteRegister(REG_VECTOR_BASE, (unsigned int) trap_vector);
 }
 
 void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
