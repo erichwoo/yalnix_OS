@@ -3,14 +3,9 @@
  * Kernel functionality
  */
 
-#include "ctype.h"
-#include "filesystem.h"
-#include "hardware.h"
-#include "load_info.h"
-#include "yalnix.h"
-#include "ykernel.h"
-#include "ylib.h"
-#include "yuser.h"
+
+#include <ykernel.h>
+
 
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
@@ -79,7 +74,7 @@ typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
 } kernel_global_pt_t;
 
-typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap handler function
+typedef void (*trap_handler_t) (UserContext uc); // defining an arbitrary trap handler function
 
 /************ Kernel Global Data **************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs 
@@ -90,164 +85,7 @@ void *kernel_brk = NULL; // to be modified by SetKernelBrk
 
 // need some queue data struct to manage incoming pipe/lock/cond_var users
 // could possibly help with pcb management with proc_table
-typedef struct queue {
-  
-} queue_t;
 
-typedef struct pipe {
-  int id;
-  // buffer pointing to memory
-  lock_t lock;
-  // queue of blocked readers
-  // queue of blocked writers
-} pipe_t;
-  
-typedef struct lock {
-  int id;
-  // 0/1 locked or not
-  // queue of processes that want to acquire lock
-} lock_t;
-
-typedef struct cond_var {
-  int id;
-  // queue of waiting processes waiting for signal
-} cond_t;
-
-/*********** Function Prototypes and Commented Pseudocode *********/
-
-// Possibly useful functions:
-
-// find one free frame each time ?
-pte_t FindFreeFrame(free_frame_vec_t* vec);
-
-// VM setup, doing gymnastics to set up VM, which should be enabled when it returns
-/*
-1. set up free_frame_vec
-2. set up region 0 page table (assign full space for stack?)
-3. turn on VM (do we need to care about region 1 at this point?)
-*/
-void VM_setup();
-
-// configure the first pcb during boot time
-// for both idle and init?
-/*
-1. Create proc_table
-2. create and add pcb
-3. setup region 1
-4. Configure UserContext
-5. Somehow return to usermode? (how to do that??? can kernel trap itself? if not where to store the UserContext
-so the hardware knows? is it uctxt?)
-*/
-void PCB_setup();
-
-/////////////// Basic Process Coordination
-
-/* Create a new child pcb_t
- * assign new pid and its ppid
- * Copy region 1 page table, uc, and kc
- * state = ready
- * get new frames for kernel stack
- * copy region 0, change stack part to map to new frames above
- * return (not sure how to get one return pid, other 0. general regs in UC?)
- */
-int KernelFork (void);
-
-/* Load Program with exec args and pcb_t  */
-int KernelExec (char *filename, char **argvec);
-
-/* assign status & state = zombie
- * free anything malloc'd in pcb. 
- * if parent is dead(not in proc table), remove from proc table
- * otherwise, leave it in proc table 
- */
-void KernelExit (int status);
-
-/* Loop through children, removing dead children along the way
- * if there is zombie, return zombie pid and edit status_ptr if nonNULL
- * if no zombie but still alive children, change state = block. 
- *      - loop again after some time? or somehow a child signals its exit
- * if no/all-dead children, return error
- */
-int KernelWait (int *status_ptr);
-
-/* Return pid from current pcb*/
-int KernelGetPid (void);
-
-/* Check if heap will shrink below to user data or stack or invalid, error if so
- * add or remove page table entries depending on if addr is above or below current brk
- */
-int KernelBrk (void *addr);
-
-/* clock_ticks < 1 error checked
- * status = block, track hardware clock trap, after x time
- */
-int KernelDelay (int clock_ticks);
-
-////////////// I/O Syscalls
-
-/* Check if TtyReceive has extra chars
- * if not, state = block and wait for TrapTtyReceive to come in
- * Once there are lines to receive, Collect TrapTtyReceive
- * Validate buf based on len, return whatever necessary
- *   - THought: should Trap handler call TtyRecieve or this funct
- */
-int KernelTtyRead (int tty_id, void *buf, int len);
-
-/* Write with hardware funct TtyTransmit
- * Validate error, and return whatever necessary
- */
-int KernelTtyWrite (int tty_id, void *buf, int len);
-
-//////////////// IPC Syscalls
-
-/* Initialize pipe_t with id, lock, queues*/
-int KernelPipeInit (int *pipe_idp);
-
-/* Check if someone is reading/writing, block if so
- * check if there are bytes to read from buffer, if not return.
- * if so, acquire lock
- * put pipe's contents into param buf
- * release lock
- */
-int KernelPipeRead (int pipe_id, void *buf, int len);
-
-/* Check if someone is reading/writing, block if so
- * acquire lock, write to pipe buffer (may need to reallocate buffer)
- * release lock
- */
-int KernelPipeWrite (int pipe_id, void *buf, int len);
-
-//////////// Synchronization Syscalls
-
-/* initialize new lock_t with its id, locked = 0, initialize queue */
-int KernelLockInit (int *lock_idp);
-
-/* if lock is locked
- *      - add process to lock's queue, state = block
- * if not
- *      - make lock locked, take process off queue
- */
-int KernelAcquire (int lock_id);
-
-/* make lock variable 0, potentially signal the queue  */
-int KernelRelease (int lock_id);
-
-/* Initialize new cond_t with id*/
-int KernelCvarInit (int *cvar_idp);
-
-/* Add process to cond_var's queue, state = block
- * return once signaled
- */
-int KernelCvarWait (int cvar_id, int lock_id);
-
-/* Signal the next process on cond_var queue */
-int KernelCvarSignal (int cvar_id);
-
-/* Signal all the processes on cond_var queue */
-int KernelCvarBroadcast (int cvar_id);
-
-/* free and remove all memory in the pipe/lock/condvar of the given id*/
-int KernelReclaim (int id);
 
 //////////////// Traps
 
@@ -283,12 +121,10 @@ int SetKernelBrk (void *addr);
 2. set up trap table
 3. call PCB_setup to configure idle
 */
-void KernelStart (char *cmd args[], unsigned int pmem size, UserContext *uctxt);
+void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt);
 
 // Kernel Context Switching
 
-KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p);
-KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used);
 
 /*********************** Functions ***********************/
 void set_pte (pte_t *pte, int valid, int pfn, int prot) {
@@ -433,7 +269,7 @@ void trap_setup(void) {
 void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
   // initialize pcb struct and assign values
   pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
-  pcb->pid = helper_new_pid(user_pt);
+  pcb->pid = helper_new_pid(user_pt->pt);
   pcb->ppid = ppid;
   pcb->state = READY;
   pcb->exit_status = 0; // will be changed if process error or return value needed
@@ -472,7 +308,7 @@ void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt) 
 
   proc_table = (proc_table_t*) malloc(sizeof(proc_table_t));
 
-  VM_setup(init_user_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
+  VM_setup(init_user_pt, init_kstack_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
   trap_setup(); // set up trap handlers
   PCB_setup(-1, init_user_pt, init_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(); // manipulate UserContext
