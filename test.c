@@ -31,30 +31,13 @@
 
 /************ Data Structs *********/
 
-typedef struct pcb {
-  int pid;
-  int ppid;
-  // possibly pcb_t* children?
-  int state;
-  int exit_status;
-  // address space
-  reg1_pt_t *reg1; // region 1 page table management
-  kernel_stack_pt_t *k_stack; // copy of kernel stack page table
 
-  UserContext *uc;
-  KernelContext *kc;
-
-} pcb_t; 
   
-typedef struct proc_table { // maybe a queue?
-  int size; // number of current process under management
-  pcb_t *head; //pointer to the head of the queue
-} proc_table_t;
 
-typedef struct f_frame{
-// tracking which frames in physical are free
+
+typedef struct f_frame { // tracking which frames in physical are free
   int size; // available number of physical frames
-  unsigned char *bit_vector // pointer to a bit vector 
+  unsigned char * bit_vector; // pointer to a bit vector 
   unsigned int avail_pfn; // next available pfn
   int filled;
 } free_frame_t;
@@ -74,11 +57,31 @@ typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
 } kernel_global_pt_t;
 
+typedef struct pcb {
+  int pid;
+  int ppid;
+  // possibly pcb_t* children?
+  int state;
+  int exit_status;
+  // address space
+  user_pt_t *reg1; // region 1 page table management
+  kernel_stack_pt_t *k_stack; // copy of kernel stack page table
+
+  UserContext *uc;
+  KernelContext *kc;
+
+} pcb_t; 
+
+typedef struct proc_table { // maybe a queue?
+  int size; // number of current process under management
+  pcb_t *head; //pointer to the head of the queue
+} proc_table_t;
+
 typedef void (*trap_handler_t) (UserContext uc); // defining an arbitrary trap handler function
 
 /************ Kernel Global Data **************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs 
-proc_table_t *proc_table = {0, NULL};
+proc_table_t *proc_table = NULL;
 free_frame_t free_frame = {0, NULL, BASE_FRAME, 0};
 kernel_global_pt_t kernel_pt;
 void *kernel_brk = NULL; // to be modified by SetKernelBrk
@@ -121,7 +124,7 @@ int SetKernelBrk (void *addr);
 2. set up trap table
 3. call PCB_setup to configure idle
 */
-void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt);
+void KernelStart (char *cmd_args[], unsigned int pmem_size, UserContext *uctxt);
 
 // Kernel Context Switching
 
@@ -156,16 +159,17 @@ int vacate_frame(unsigned int pfn) { // mark pfn as free
   return pfn;
 }
 
-int get_frame(unsigned int pfn, int auto) { // find a free physical frame, returns pfn
+int get_frame(unsigned int pfn, int auto_assign) { // find a free physical frame, returns pfn
   if (free_frame.filled >= free_frame.size) return ERROR;
-  if (auto) {
+  if (auto_assign) {
     pfn = free_frame.avail_pfn;
   }
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 1);
   free_frame.filled++;
   // find next free 
   if (pfn == free_frame.avail_pfn) {
-    for (int n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++);
+    int n_pfn;
+    for (n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++);
     free_frame.avail_pfn = n_pfn;
   }
   return pfn;
@@ -181,7 +185,7 @@ int SetKernelBrk (void *addr) {
       for (int vpn = curr_brk_vpn + 1; vpn <= next_brk_vpn; vpn++) {
         set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
       }
-    } else if (next_brk < curr_brk) {
+    } else if (next_brk_vpn < curr_brk_vpn) {
       // theoretically doesn't have to do anything, but freeing frames nonetheless
       for (int vpn = curr_brk_vpn; vpn > next_brk_vpn; vpn--) {
         set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, vacate_frame(kernel_pt.pt[vpn - BASE_PAGE_0].pfn), NONE);
@@ -194,7 +198,7 @@ int SetKernelBrk (void *addr) {
 
 
 
-void VM_setup(void *init_user_pt, void *init_kstack_pt) {
+void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
   // write stuff 
   WriteRegister(REG_PTBR0, (unsigned int) kernel_pt.pt);
   WriteRegister(REG_PTLR0, (unsigned int) NUM_PAGES_0);
@@ -221,7 +225,7 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   }
   unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
   set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_EXEC);
-  init_user_pt->stack_low = (unsigned int) VMEM_1_LIMIT - 1;
+  init_user_pt->stack_low = (void *)((unsigned int) VMEM_1_LIMIT - 1);
 
   WriteRegister(REG_VM_ENABLE, 1);
 }
@@ -295,7 +299,7 @@ void idle_setup(void) {
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
 }
 
-void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt) {
+void KernelStart (char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   // initialize vital global data structures
   kernel_brk =  _kernel_orig_brk; // first thing first
 
