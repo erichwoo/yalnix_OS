@@ -219,8 +219,9 @@ void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
     set_pte(&init_user_pt->pt[vpn - BASE_PAGE_1], 0, NONE, NONE);
   }
   unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
-  set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_EXEC);
-  init_user_pt->stack_low = (void *)((unsigned int) DOWN_TO_PAGE(VMEM_1_LIMIT - 1));
+  set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
+  set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1 - 1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
+  init_user_pt->stack_low = (void *)((unsigned int) DOWN_TO_PAGE(VMEM_1_LIMIT - 1)); // have to point to somewhere lower than the top
   }
   
   WriteRegister(REG_VM_ENABLE, 1);
