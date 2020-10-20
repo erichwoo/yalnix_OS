@@ -11,7 +11,7 @@ K_SRC_DIR = .
 
 # What are the kernel c and include files?
 K_SRCS = test.c
-K_INCS = ykernel.h
+K_INCS = 
 
 # Where's your user source?
 U_SRC_DIR = ./test
