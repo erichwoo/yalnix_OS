@@ -152,6 +152,7 @@ int vacate_frame(unsigned int pfn) { // mark pfn as free
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 0);
   free_frame.filled--;
   if (pfn < free_frame.avail_pfn) free_frame.avail_pfn = pfn;
+  TracePrintf(1, "freed frame %d\n", pfn);
   return pfn;
 }
 
@@ -162,13 +163,17 @@ int get_frame(unsigned int pfn, int auto_assign) { // find a free physical frame
   
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 1);
   free_frame.filled++;
+  //TracePrintf(1, "%d\n", (unsigned int) free_frame.bit_vector[0]);
 
   // find next free 
   if (pfn == free_frame.avail_pfn) {
     int n_pfn;
-    for (n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++);
+    for (n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME) && 
+      n_pfn  - BASE_FRAME < free_frame.size; n_pfn++);
     free_frame.avail_pfn = n_pfn;
   }
+  //TracePrintf(1, "Got frame %d\n", pfn);
+  //TracePrintf(1, "Next: %d\n", free_frame.avail_pfn);
   return pfn;
 }
 
@@ -304,6 +309,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
   free_frame.size = pmem_size / PAGESIZE;
   free_frame.bit_vector = malloc(free_frame.size / CELL_SIZE + 1);
+  for (int i = 0; i < free_frame.size / CELL_SIZE + 1; i++) free_frame.bit_vector[i] = (char) 0; // initialzie 
 
 
   user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
