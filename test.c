@@ -36,6 +36,13 @@
 
 /************ Data Structs *********/
 
+typedef struct f_frame { // tracking which frames in physical are free
+  int size; // available number of physical frames
+  unsigned char * bit_vector; // pointer to a bit vector 
+  unsigned int avail_pfn; // next available pfn
+  int filled;
+} free_frame_t;
+
 typedef struct user_pt { // userland page table
   void *heap_low; // end of data and start of heap
   void *heap_high; // brk or the address just below brk?
@@ -46,6 +53,10 @@ typedef struct user_pt { // userland page table
 typedef struct kernel_stack_pt { // kernel stack page_table
   pte_t pt[NUM_KSTACK_PAGES]; // actual entries
 } kernel_stack_pt_t;
+
+typedef struct kernel_global_pt { // includes code, data, heap
+  pte_t pt[NUM_PAGES_0]; // actual entries
+} kernel_global_pt_t;
 
 typedef struct pcb {
   int pid;
@@ -61,23 +72,11 @@ typedef struct pcb {
   KernelContext *kc;
 
 } pcb_t; 
-  
+
 typedef struct proc_table { // maybe a queue?
   int size; // number of current process under management
   pcb_t *head; //pointer to the head of the queue
 } proc_table_t;
-
-typedef struct f_frame{
-// tracking which frames in physical are free
-  int size; // available number of physical frames
-  unsigned char *bit_vector; // pointer to a bit vector 
-  unsigned int avail_pfn; // next available pfn
-  int filled;
-} free_frame_t;
-
-typedef struct kernel_global_pt { // includes code, data, heap
-  pte_t pt[NUM_PAGES_0]; // actual entries
-} kernel_global_pt_t;
 
 typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap handler function
 
@@ -130,7 +129,6 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt);
 
 // Kernel Context Switching
 
-
 /*********************** Functions ***********************/
 void set_pte(pte_t *pte, int valid, int pfn, int prot) {
   if (!(pte->valid = valid)) return; // turn off valid bit, others don't matter
@@ -162,10 +160,9 @@ int vacate_frame(unsigned int pfn) { // mark pfn as free
   return pfn;
 }
 
-// renamed auto to auto_val as auto is a keyword
-int get_frame(unsigned int pfn, int auto_val) { // find a free physical frame, returns pfn
+int get_frame(unsigned int pfn, int auto_assign) { // find a free physical frame, returns pfn
   if (free_frame.filled >= free_frame.size) return ERROR;
-  if (auto_val) 
+  if (auto_assign)
     pfn = free_frame.avail_pfn;
   
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 1);
@@ -173,13 +170,14 @@ int get_frame(unsigned int pfn, int auto_val) { // find a free physical frame, r
 
   // find next free 
   if (pfn == free_frame.avail_pfn) {
-    for (int n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++) // assuming free_frame.avail... is part of for loop not ';"
-      free_frame.avail_pfn = n_pfn;
+    int n_pfn;
+    for (n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++);
+    free_frame.avail_pfn = n_pfn;
   }
   return pfn;
 }
 
-int SetKernelBrk (void *addr) {
+int SetKernelBrk(void *addr) {
   if ((unsigned int) addr >= DOWN_TO_PAGE(KERNEL_STACK_BASE) ||(unsigned int) addr <= UP_TO_PAGE((unsigned int) _kernel_data_end - 1)) return ERROR;
 
   if (ReadRegister(REG_VM_ENABLE)) {
@@ -189,7 +187,7 @@ int SetKernelBrk (void *addr) {
       for (int vpn = curr_brk_vpn + 1; vpn <= next_brk_vpn; vpn++) {
         set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
       }
-    } else if (next_brk_vpn < curr_brk_vpn) { // I assume next_brk is supposed to be next_brk_vpn, same with curr_brk
+    } else if (next_brk_vpn < curr_brk_vpn) {
       // theoretically doesn't have to do anything, but freeing frames nonetheless
       for (int vpn = curr_brk_vpn; vpn > next_brk_vpn; vpn--) {
         set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, vacate_frame(kernel_pt.pt[vpn - BASE_PAGE_0].pfn), NONE);
@@ -200,9 +198,7 @@ int SetKernelBrk (void *addr) {
   return 0;
 }
 
-
-
-void VM_setup(void *init_user_pt, void *init_kstack_pt) {
+void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
   // write stuff 
   WriteRegister(REG_PTBR0, (unsigned int) kernel_pt.pt);
   WriteRegister(REG_PTLR0, (unsigned int) NUM_PAGES_0);
@@ -229,12 +225,12 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   }
   unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
   set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_EXEC);
-  init_user_pt->stack_low = (unsigned int) VMEM_1_LIMIT - 1;
+  init_user_pt->stack_low = (void *)((unsigned int) VMEM_1_LIMIT - 1);
   }
   
   WriteRegister(REG_VM_ENABLE, 1);
 }
-
+ 
 // Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *uc) {
   TracePrintf(1, "The code of syscall is 0x%x\n", uc->code);
