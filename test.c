@@ -3,9 +3,14 @@
  * Kernel functionality
  */
 
-
-#include <ykernel.h>
-
+#include "ctype.h"
+#include "filesystem.h"
+#include "hardware.h"
+#include "load_info.h"
+#include "yalnix.h"
+#include "ykernel.h"
+#include "ylib.h"
+#include "yuser.h"
 
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
@@ -31,6 +36,17 @@
 
 /************ Data Structs *********/
 
+typedef struct user_pt { // userland page table
+  void *heap_low; // end of data and start of heap
+  void *heap_high; // brk or the address just below brk?
+  void *stack_low; // top of the user stack
+  pte_t pt[NUM_PAGES_1]; // actual entries
+} user_pt_t;
+
+typedef struct kernel_stack_pt { // kernel stack page_table
+  pte_t pt[NUM_KSTACK_PAGES]; // actual entries
+} kernel_stack_pt_t;
+
 typedef struct pcb {
   int pid;
   int ppid;
@@ -38,7 +54,7 @@ typedef struct pcb {
   int state;
   int exit_status;
   // address space
-  reg1_pt_t *reg1; // region 1 page table management
+  user_pt_t *reg1; // region 1 page table management
   kernel_stack_pt_t *k_stack; // copy of kernel stack page table
 
   UserContext *uc;
@@ -54,31 +70,20 @@ typedef struct proc_table { // maybe a queue?
 typedef struct f_frame{
 // tracking which frames in physical are free
   int size; // available number of physical frames
-  unsigned char *bit_vector // pointer to a bit vector 
+  unsigned char *bit_vector; // pointer to a bit vector 
   unsigned int avail_pfn; // next available pfn
   int filled;
 } free_frame_t;
-
-typedef struct user_pt { // userland page table
-  void *heap_low; // end of data and start of heap
-  void *heap_high; // brk or the address just below brk?
-  void *stack_low; // top of the user stack
-  pte_t pt[NUM_PAGES_1]; // actual entries
-} user_pt_t;
-
-typedef struct kernel_stack_pt { // kernel stack page_table
-  pte_t pt[NUM_KSTACK_PAGES]; // actual entries
-} kernel_stack_pt_t;
 
 typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
 } kernel_global_pt_t;
 
-typedef void (*trap_handler_t) (UserContext uc); // defining an arbitrary trap handler function
+typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap handler function
 
 /************ Kernel Global Data **************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs 
-proc_table_t *proc_table = {0, NULL};
+proc_table_t *proc_table = NULL;
 free_frame_t free_frame = {0, NULL, BASE_FRAME, 0};
 kernel_global_pt_t kernel_pt;
 void *kernel_brk = NULL; // to be modified by SetKernelBrk
@@ -114,20 +119,20 @@ void TrapDisk(UserContext *uc);
 // The bottom half of the page table shall remain the same,
 // only to be touched by SetKernelBrk.
 // This means all process's will be given the same region0 PTBR?
-int SetKernelBrk (void *addr);
+int SetKernelBrk(void *addr);
 
 /*
 1. call VM_setup to set up virtual memory
 2. set up trap table
 3. call PCB_setup to configure idle
 */
-void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt);
+void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt);
 
 // Kernel Context Switching
 
 
 /*********************** Functions ***********************/
-void set_pte (pte_t *pte, int valid, int pfn, int prot) {
+void set_pte(pte_t *pte, int valid, int pfn, int prot) {
   if (!(pte->valid = valid)) return; // turn off valid bit, others don't matter
   pte->pfn = pfn;
   pte->prot = prot;
@@ -136,7 +141,8 @@ void set_pte (pte_t *pte, int valid, int pfn, int prot) {
 int get_bit(unsigned char *bit_array, int index) {
   int cell = index / CELL_SIZE;
   int offset = index % CELL_SIZE;
-  return (bit_array[cell] & (1 << offset) == 0? 0: 1);
+  // added extra parens for & operation
+  return ((bit_array[cell] & (1 << offset)) == 0? 0: 1); 
 }
 
 void set_bit(unsigned char *bit_array, int index, int bit) {
@@ -156,17 +162,19 @@ int vacate_frame(unsigned int pfn) { // mark pfn as free
   return pfn;
 }
 
-int get_frame(unsigned int pfn, int auto) { // find a free physical frame, returns pfn
+// renamed auto to auto_val as auto is a keyword
+int get_frame(unsigned int pfn, int auto_val) { // find a free physical frame, returns pfn
   if (free_frame.filled >= free_frame.size) return ERROR;
-  if (auto) {
+  if (auto_val) 
     pfn = free_frame.avail_pfn;
-  }
+  
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 1);
   free_frame.filled++;
+
   // find next free 
   if (pfn == free_frame.avail_pfn) {
-    for (int n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++);
-    free_frame.avail_pfn = n_pfn;
+    for (int n_pfn = pfn; get_bit(free_frame.bit_vector, n_pfn - BASE_FRAME); n_pfn++) // assuming free_frame.avail... is part of for loop not ';"
+      free_frame.avail_pfn = n_pfn;
   }
   return pfn;
 }
@@ -181,7 +189,7 @@ int SetKernelBrk (void *addr) {
       for (int vpn = curr_brk_vpn + 1; vpn <= next_brk_vpn; vpn++) {
         set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
       }
-    } else if (next_brk < curr_brk) {
+    } else if (next_brk_vpn < curr_brk_vpn) { // I assume next_brk is supposed to be next_brk_vpn, same with curr_brk
       // theoretically doesn't have to do anything, but freeing frames nonetheless
       for (int vpn = curr_brk_vpn; vpn > next_brk_vpn; vpn--) {
         set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, vacate_frame(kernel_pt.pt[vpn - BASE_PAGE_0].pfn), NONE);
@@ -222,21 +230,22 @@ void VM_setup(void *init_user_pt, void *init_kstack_pt) {
   unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
   set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_EXEC);
   init_user_pt->stack_low = (unsigned int) VMEM_1_LIMIT - 1;
-
+  }
+  
   WriteRegister(REG_VM_ENABLE, 1);
 }
 
 // Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *uc) {
-  Traceprintf("The code of syscall is 0x%x\n", uc->code);
+  TracePrintf(1, "The code of syscall is 0x%x\n", uc->code);
 }
 // Check the process table to decide which process to schedule; initialize a context switch if necessary
 void TrapClock(UserContext *uc) {
-  Traceprintf(1, "Clock Trap occured!\n");
+  TracePrintf(1, "Clock Trap occured!\n");
 }
 // temporary trap handler funct for all the unhandled traps. 
 void TrapTemp(UserContext *uc) {
-  Traceprintf(1, "This trap type %d is currently unhandled\n", uc->vector);
+  TracePrintf(1, "This trap type %d is currently unhandled\n", uc->vector);
 }
 
 void trap_setup(void) {
@@ -295,7 +304,7 @@ void idle_setup(void) {
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
 }
 
-void KernelStart (char *cmd args[], unsigned int pmem_size, UserContext *uctxt) {
+void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   // initialize vital global data structures
   kernel_brk =  _kernel_orig_brk; // first thing first
 

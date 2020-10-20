@@ -50,7 +50,7 @@ YALNIX_OUTPUT = yalnix
 #Use the gcc compiler for compiling and linking
 CC = gcc
 
-DDIR58 = /yalnix
+DDIR58 = .
 LIBDIR = $(DDIR58)/lib
 INCDIR = $(DDIR58)/include
 ETCDIR = $(DDIR58)/etc
