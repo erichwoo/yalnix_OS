@@ -3,14 +3,7 @@
  * Kernel functionality
  */
 
-#include "ctype.h"
-#include "filesystem.h"
-#include "hardware.h"
-#include "load_info.h"
-#include "yalnix.h"
 #include "ykernel.h"
-#include "ylib.h"
-#include "yuser.h"
 
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
