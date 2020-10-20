@@ -213,6 +213,7 @@ void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
       init_kstack_pt->pt[vpn - BASE_PAGE_KSTACK] = kernel_pt.pt[vpn - BASE_PAGE_0];
     } else {
       set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 0, NONE, NONE);
+    }
   }
   // user pt
   for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
@@ -220,9 +221,9 @@ void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
   }
   unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
   set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
-  set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1 - 1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
-  init_user_pt->stack_low = (void *)((unsigned int) DOWN_TO_PAGE(VMEM_1_LIMIT - 1)); // have to point to somewhere lower than the top
-  }
+  //set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1 - 1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
+  //init_user_pt->stack_low = (void *)((unsigned int) DOWN_TO_PAGE(VMEM_1_LIMIT - 1)); // have to point to somewhere lower than the top
+  init_user_pt->stack_low = (void *)((unsigned int) VMEM_1_LIMIT - 4);
   
   WriteRegister(REG_VM_ENABLE, 1);
 }
@@ -294,7 +295,7 @@ void idle_setup(void) {
   pcb_t* idle = proc_table->head;
   idle->uc->pc = DoIdle; // point to doIdle();
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
-  TracePrintf(1,"sp: 0x%08X\n", idle->reg1->stack_low);
+  //TracePrintf(1,"sp: 0x%08X\n", idle->reg1->stack_low);
 }
 
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
