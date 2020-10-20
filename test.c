@@ -220,7 +220,7 @@ void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
   }
   unsigned int usr_stack_vpn = LIM_PAGE_1 - 1;
   set_pte(&init_user_pt->pt[usr_stack_vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_EXEC);
-  init_user_pt->stack_low = (void *)((unsigned int) VMEM_1_LIMIT - 1);
+  init_user_pt->stack_low = (void *)((unsigned int) DOWN_TO_PAGE(VMEM_1_LIMIT - 1));
   }
   
   WriteRegister(REG_VM_ENABLE, 1);
@@ -293,6 +293,7 @@ void idle_setup(void) {
   pcb_t* idle = proc_table->head;
   idle->uc->pc = DoIdle; // point to doIdle();
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
+  TracePrintf(1,"sp: 0x%08X\n", idle->reg1->stack_low);
 }
 
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
@@ -312,6 +313,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   trap_setup(); // set up trap handlers
   PCB_setup(-1, init_user_pt, init_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(); // manipulate UserContext
+  TracePrintf(1,"Leaving Kstart\n");
   // idle begins when KernelStart returns
 }
 
