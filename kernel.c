@@ -79,7 +79,7 @@ typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
 } kernel_global_pt_t;
 
-typedef void (*trap_handler_t) (UserContext uc); // defining an arbitrary trap handler function
+typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap handler function
 
 /************ Kernel Global Data **************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs 
