@@ -3,9 +3,7 @@
  * Kernel functionality
  */
 
-
 #include <ykernel.h>
-
 
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
@@ -85,7 +83,6 @@ void *kernel_brk = NULL; // to be modified by SetKernelBrk
 // need some queue data struct to manage incoming pipe/lock/cond_var users
 // could possibly help with pcb management with proc_table
 
-
 //////////////// Traps
 
 // Examine the "code" field of user context and decide which syscall to invoke
@@ -121,8 +118,6 @@ int SetKernelBrk(void *addr);
 3. call PCB_setup to configure idle
 */
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt);
-
-// Kernel Context Switching
 
 /*********************** Functions ***********************/
 void set_pte(pte_t *pte, int valid, int pfn, int prot) {
@@ -284,7 +279,7 @@ void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, User
   pcb->k_stack = k_stack_pt;
   pcb->uc = uc;
   // add to proc_table here
-  // for now since proc_table structure isn't decided, will add to head.
+  // for now since proc_table structure isn't decided, will add idle to head.
   proc_table->head = pcb;
   //return pcb->pid;
 }
@@ -311,7 +306,6 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   free_frame.bit_vector = malloc(free_frame.size / CELL_SIZE + 1);
   for (int i = 0; i < free_frame.size / CELL_SIZE + 1; i++) free_frame.bit_vector[i] = (char) 0; // initialzie 
 
-
   user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
   kernel_stack_pt_t *init_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
 
@@ -324,4 +318,3 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   TracePrintf(1,"Leaving Kstart\n");
   // idle begins when KernelStart returns
 }
-
