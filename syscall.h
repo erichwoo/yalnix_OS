@@ -3,10 +3,10 @@
  * header file for syscalls.c
  */
 
-#include "ykernel.h"
-
 #ifndef __SYSCALL_H
 #define __SYSCALL_H
+
+#include "ykernel.h"
 
 /////////////// Basic Process Coordination
 

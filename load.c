@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <ykernel.h>
 #include <load_info.h>
+#include "process.h"
 
 /*
  * ==>> #include anything you need for your kernel here

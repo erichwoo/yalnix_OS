@@ -1,64 +1,13 @@
 /* Erich Woo & Boxian Wang
- * 10 October 2020
- * Kernel functionality
+ * 23 October 2020
+ * Kernel Memory Management
  */
 
-
-#include <ykernel.h>
-
-
-#define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
-#define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
-#define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
-#define BASE_PAGE_0 (VMEM_0_BASE >> PAGESHIFT) // starting page num of reg 0
-#define LIM_PAGE_0 (VMEM_0_LIMIT >> PAGESHIFT) // first page above reg 0 
-#define BASE_PAGE_1 (VMEM_1_BASE >> PAGESHIFT) // starting page num of reg 1
-#define LIM_PAGE_1 (VMEM_1_LIMIT >> PAGESHIFT) // first page above reg 1 
-#define BASE_PAGE_KSTACK (KERNEL_STACK_BASE >> PAGESHIFT)
-#define LIM_PAGE_KSTACK (KERNEL_STACK_LIMIT >> PAGESHIFT)
-#define BASE_FRAME (PMEM_BASE >> PAGESHIFT)
-#define CELL_SIZE (sizeof(char) << 3)
-
-#define AUTO 1
-#define FIXED 0
-#define NONE 0
-
-
-
-/************ Data Structs *********/
-
-typedef struct f_frame { // tracking which frames in physical are free
-  int size; // available number of physical frames
-  unsigned char * bit_vector; // pointer to a bit vector 
-  unsigned int avail_pfn; // next available pfn
-  int filled;
-} free_frame_t;
-
-typedef struct user_pt { // userland page table
-  void *heap_low; // end of data and start of heap
-  void *heap_high; // brk or the address just below brk?
-  void *stack_low; // top of the user stack
-  pte_t pt[NUM_PAGES_1]; // actual entries
-} user_pt_t;
-
-typedef struct kernel_stack_pt { // kernel stack page_table
-  pte_t pt[NUM_KSTACK_PAGES]; // actual entries
-} kernel_stack_pt_t;
-
-typedef struct kernel_global_pt { // includes code, data, heap
-  pte_t pt[NUM_PAGES_0]; // actual entries
-} kernel_global_pt_t;
-
-
+#include "kmem.h"
 
 extern free_frame_t free_frame;
 extern kernel_global_pt_t kernel_pt;
 extern void *kernel_brk; // to be modified by SetKernelBrk
-
-int SetKernelBrk(void *addr);
-
-
-// Kernel Context Switching
 
 /*********************** Functions ***********************/
 void set_pte(pte_t *pte, int valid, int pfn, int prot) {
@@ -134,6 +83,3 @@ int SetKernelBrk(void *addr) {
   kernel_brk = addr;
   return 0;
 }
-
-
-

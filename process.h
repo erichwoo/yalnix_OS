@@ -1,8 +1,13 @@
-#define TERMINATED -1
-#define RUNNING 0
-#define READY 1
-#define BLOCKED 2
-#define DEFUNCT 3
+/* Erich Woo & Boxian Wang
+ * 23 October 2020
+ * Process structures header file
+ */
+
+#ifndef __PROCESS_H
+#define __PROCESS_H
+
+#include "macro.h"
+#include "kmem.h" // for page table usage
 
 typedef struct pcb {
   int pid;
@@ -28,3 +33,5 @@ typedef struct proc_table { // maybe a queue?
 typedef struct queue {
   
 } queue_t;
+
+#endif //__PROCESS_H

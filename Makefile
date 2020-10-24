@@ -4,14 +4,12 @@
 #	Prepared by Sean Smith and Adam Salem and various Yalnix developers
 #	of years past...
 
-
-
 # Where's your kernel source?
 K_SRC_DIR = .
 
 # What are the kernel c and include files?
-K_SRCS = kernel.c syscall.c
-K_INCS = syscall.h
+K_SRCS = kernel.c kmem.c syscall.c #load.c
+K_INCS = kmem.h process.h syscall.h
 
 # Where's your user source?
 U_SRC_DIR = 
@@ -91,7 +89,7 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 all: $(ALL)	
 
 clean:
-	rm -f *.o *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS) $(KERNEL_OBJS) $(USER_OBJS) core.* ~/core
+	rm -f *.o *~ DISK TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS) $(KERNEL_OBJS) $(USER_OBJS) core.* ~/core
 
 count:
 	wc $(KERNEL_SRCS) $(USER_SRCS)
