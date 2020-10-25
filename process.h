@@ -6,7 +6,6 @@
 #ifndef __PROCESS_H
 #define __PROCESS_H
 
-#include "ykernel.h"
 #include "macro.h"
 #include "kmem.h" // for page table usage
 
@@ -42,25 +41,37 @@ typedef struct proc_table { // maybe a queue?
   int count; // number of current process under management
   pcb_t *curr; // running process
 
-  pcb_ll_t* new;     // queue, a setup pcb to be moved to ready
+  pcb_ll_t* new;     // a setup pcb to be admitted to ready queue
   pcb_ll_t* ready;   // will utilize ll's queue functions
   pcb_ll_t* blocked;
   pcb_ll_t* defunct;
 } proc_table_t;
 
+extern proc_table_t* ptable;
+
 // pcb manipulation
 
-int PCB_setup(proc_table_t* ptable, int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
+int PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
+
+int get_pid(void);
 
 // pcb linked list manipulation
 
-void enqueue(pcb_ll_t* q, pcb_t* pcb);
-pcb_t* dequeue(pcb_ll_t* q);
 pcb_t* find(pcb_ll_t* ll, int pid);
 
 // proc table
 
-void initialize_ptable(proc_table_t* ptable);
-void rr_preempt(proc_table_t* ptable);
-void print_ptable(proc_table_t* ptable);
+void initialize_ptable(void);
+
+// wrappers
+void schedule_next(void);
+void new(pcb_t* pcb);
+void ready(pcb_t* pcb);
+void block(void);
+void defunct(int rc);
+void terminate(void);
+void new_ready(int pid);
+void unblock(int pid);
+void rr_preempt(void);
+void print_ptable(void);
 #endif //__PROCESS_H

@@ -36,17 +36,36 @@ void KernelExit (int status);
 int KernelWait (int *status_ptr);
 
 /* Return pid from current pcb*/
-int KernelGetPid (void);
+int KernelGetPid (void) {
+  int pid = get_pid();
+  TracePrintf(1, "KernelGetPid() got %d\n", pid);
+  return pid;
+}
 
 /* Check if heap will shrink below to user data or stack or invalid, error if so
- * add or remove page table entries depending on if addr is above or below current brk                                                    
+ * add or remove page table entries depending on if addr is above or below current brk
  */
-int KernelBrk (void *addr);
+int KernelBrk (void *addr) {
+  
+}
 
 /* clock_ticks < 1 error checked
  * status = block, track hardware clock trap, after x time
  */
-int KernelDelay (int clock_ticks);
+int KernelDelay (int clock_ticks) {
+  if (clock_ticks < 0)
+    TracePrintf(1, "Error calling KernelDelay(): clock_ticks < 0.\n");
+  else if (clock_ticks == 0)
+    return 0;
+  
+  // block current process
+  int pid = KernelGetPid();
+  block();
+  for (int i = 0; i < clock_ticks; i++)
+    Pause();
+  unblock(pid);
+  return 0;
+}
 
 ////////////// I/O Syscalls
 

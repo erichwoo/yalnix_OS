@@ -7,6 +7,8 @@
 #define __SYSCALL_H
 
 #include "ykernel.h"
+#include "process.h" // to access pcb methods when in syscall
+#include "kmem.h" // for setKernelBrk
 
 /////////////// Basic Process Coordination
 

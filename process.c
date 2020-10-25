@@ -4,6 +4,7 @@
  */
 
 #include "process.h"
+
 int isEmpty(pcb_ll_t* ll) {
   int empty_head = (ll->head == NULL);
   int empty_tail = (ll->tail == NULL);
@@ -20,7 +21,7 @@ int compare(pcb_t* a, pcb_t* b) {
   return a->data->pid - b->data->pid;
 }
 
-int PCB_setup(proc_table_t* ptable, int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
+int PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
   // initialize pcb struct and assign values
   pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
   pcb->data = (data_t*) malloc(sizeof(data_t));
@@ -34,9 +35,16 @@ int PCB_setup(proc_table_t* ptable, int ppid, user_pt_t* user_pt, kernel_stack_p
   pcb->data->uc = uc;
   pcb->next = NULL;
   
-  enqueue(ptable->new, pcb);
-  ptable->count++;
+  new(pcb);
   return pcb->data->pid;
+}
+
+int get_pid(void) {
+  if (ptable == NULL || ptable->curr == NULL) {
+    TracePrintf(1, "Error in get_pid(): NULL ptable or NULL current process.\n");
+    return -1;
+  }
+  return ptable->curr->data->pid;
 }
 
 void free_pcb(pcb_t* pcb) {
@@ -54,7 +62,7 @@ void initialize_ll(pcb_ll_t* ll) {
   ll->tail = NULL;
 }
 
-void initialize_ptable(proc_table_t* ptable) {
+void initialize_ptable(void) {
   ptable->count = 0;
   ptable->curr = NULL;
   ptable->new = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
@@ -68,7 +76,7 @@ void initialize_ptable(proc_table_t* ptable) {
   initialize_ll(ptable->defunct);
 }
 
-void free_ptable(proc_table_t* ptabe) {
+void free_ptable(void) {
   free(ptable->new);
   free(ptable->ready);
   free(ptable->blocked);
@@ -146,6 +154,7 @@ pcb_t* find_prev(pcb_ll_t* ll, int pid) {
   if (ll == NULL || ll->count == 0 || ll->count == 1) // error or length 0 or length 1
     return NULL;
 
+  pcb_t* prev;
   for (prev = ll->head; prev->next->data->pid != pid; prev = prev->next); // length 2+
   return prev; //prev will be NULL if not found
 }
@@ -154,12 +163,12 @@ pcb_t* find(pcb_ll_t* ll, int pid) {
   if (ll == NULL || ll->count == 0) // error or length 0
     return NULL;
   
-  if (ll->head->data->pid == pid) // length 1
+  if (ll->head->data->pid == pid) // length 1 and found
     return ll->head;
-  return find_prev(ll, pid)->next; // length 2+
+  return find_prev(ll, pid)->next; // length 2+ or length 1 and not found
 }
 
-// copy b into a
+/*// copy b into a
 void copy_pcb(pcb_t* a, pcb_t* b) {
   if (a != NULL && b != NULL) {
     // copy payload
@@ -168,19 +177,29 @@ void copy_pcb(pcb_t* a, pcb_t* b) {
     a->next = b->next;
   }
 }
+*/
+// find and remove will not decrement proc_table
+pcb_t* remove(pcb_ll_t* ll, int pid) {
+  if (ll == NULL || ll->count == 0)
+    return NULL;
 
-//
-pcb_t* remove(pcb_ll_t* ll, pcb_t* pcb) {
-  if (pcb->next == NULL) { // if tail, or tail & haed
-    remove_tail(ll);
+  pcb_t* prev;
+  pcb_t* ret;
+  // if head; solves length 1 and luckily pid at head
+  if (ll->head->data->pid == pid)
+    ret = remove_head(ll);  // count is decremented in here
+  else {
+    prev = find_prev(ll, pid);
+    ret = prev->next;
+    if (ret->next == NULL)  // if one to remove is tail
+      remove_tail(ll);      // count is decremented in here
+    else {
+      prev->next = prev->next->next; // reroute prev to next's next
+      ll->count--;
+    }
   }
-
-  pcb_t* ret = pcb;
-  copy_pcb(pcb, pcb->next);
-  // if head
-  if (ll->head->data->pid == pcb->data->pid)
   
-  return NULL;
+  return ret; // caller must deal with freeing removed pcb
 }
 
 void print_ll(pcb_ll_t* ll) {
@@ -197,34 +216,83 @@ void print_ll(pcb_ll_t* ll) {
   TracePrintf(1, "}\n");
 }
 
-void terminate(proc_table_t* ptable) {
-  free_pcb(ptable->curr); // curr will be NULL'd 
-  ptable->count--;
+// only works if curr is NULL
+void schedule_next(void) {
+  if (ptable != NULL && ptable->curr == NULL) {
+    ptable->curr = remove_head(ptable->ready); // make p_table's current the next up on queue
+    TracePrintf(1, "Process %d has been scheduled to run.\n", ptable->curr->data->pid);
+  }
 }
 
-void schedule_next(proc_table_t* ptable) {
-  ptable->curr = remove_head(ptable->ready); // make p_table's current the next up on queue
+void new(pcb_t* pcb) {
+  if (ptable!= NULL && pcb != NULL) {
+    add_tail(ptable->new, pcb);
+    ptable->count++; // increment count; this is only way into ptable
+    TracePrintf(1, "New Process %d created.\n", pcb->data->pid);
+  }
 }
 
-void block(proc_table_t* ptable) {
-  add_tail(ptable->blocked, ptable->curr);
-  ptable->curr = NULL;
+void ready(pcb_t* pcb) {
+  if (ptable != NULL && pcb != NULL) {
+    add_tail(ptable->ready, pcb);
+    TracePrintf(1, "Process %d added to ready queue.\n", pcb->data->pid);
+  }
 }
 
-void defunct(proc_table_t* ptable) {
-  add_tail(ptable->defunct, ptable->curr);
-  ptable->curr = NULL;
+void block(void) {
+  if (ptable != NULL && ptable->curr != NULL) {
+    int pid = ptable->curr->data->pid;
+    add_tail(ptable->blocked, ptable->curr);
+    ptable->curr = NULL;
+    TracePrintf(1, "Current Process %d moved to blocked.\n", pid);
+  }
+}
+
+void defunct(int rc) {
+  if (ptable != NULL && ptable->curr != NULL) {
+    int pid = ptable->curr->data->pid;
+    ptable->curr->data->rc = rc;
+    add_tail(ptable->defunct, ptable->curr);
+    ptable->curr = NULL;
+    TracePrintf(1, "Current Process %d moved to defunct with rc %d.\n", pid, rc);
+  }
+}
+
+// gotta free
+void terminate(void) {
+  if (ptable != NULL && ptable->curr != NULL) {
+    int pid = ptable->curr->data->pid;
+    free_pcb(ptable->curr); // curr will be NULL'd 
+    ptable->count--;
+    TracePrintf(1, "Current Process %d has been terminated.\n", pid);
+  }
+}
+
+void new_ready(int pid) {
+  pcb_t* pcb = remove(ptable->new, pid);
+  if (pcb == NULL) // error pid not there
+    TracePrintf(1, "Can't move from New -> Ready: pid not found\n");
+  ready(pcb);
+}
+
+void unblock(int pid) {
+  pcb_t* pcb = remove(ptable->blocked, pid);
+  if (pcb == NULL)
+    TracePrintf(1, "Can't move from Block -> Ready: pid not found\n");
+  ready(pcb);
 }
 
 // preempt round robin style
 // adds current process to the ready queue
 // and makes next up on ready queue as the new current process
-void rr_preempt(proc_table_t* ptable) {
-  add_tail(ptable->ready, ptable->curr); // push current process to back of queue
-  schedule_next(ptable); // will replace curr
+void rr_preempt(void) {
+  TracePrintf(1, "Preempting Round-Robin Style!\n");
+  ready(ptable->curr);
+  ptable->curr = NULL;
+  schedule_next();
 }
 
-void print_ptable(proc_table_t* ptable) {
+void print_ptable(void) {
   TracePrintf(1, "Total number of processes: %d\n", ptable->count);
   if (ptable->curr == NULL)
     TracePrintf(1, "Running Process id: NULL\n");

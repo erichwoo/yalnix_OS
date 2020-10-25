@@ -34,7 +34,7 @@ typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap 
 
 /************ Kernel Global Data **************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs
-proc_table_t *proc_table = NULL;
+proc_table_t *ptable = NULL;
 free_frame_t free_frame = {0, NULL, BASE_FRAME, 0};
 kernel_global_pt_t kernel_pt;
 void *kernel_brk = NULL; // to be modified by SetKernelBrk
@@ -109,10 +109,10 @@ void DoIdle(void) {
 }
 
 void idle_setup(int pid) {
-  pcb_t* idle = find(proc_table->new, pid);
+  pcb_t* idle = find(ptable->new, pid); // look for idle in new processes
   idle->data->uc->pc = DoIdle; // point to doIdle();
   idle->data->uc->sp = idle->data->reg1->stack_low; // hook up uc stack pointer to top of user stack
-  print_ptable(proc_table);
+  new_ready(pid);   // move idle from new->ready
   //TracePrintf(1,"sp: 0x%08X\n", idle->reg1->stack_low);
 }
 
@@ -127,13 +127,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   user_pt_t *idle_user_pt = malloc(sizeof(user_pt_t));
   kernel_stack_pt_t *idle_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
 
-  proc_table = (proc_table_t*) malloc(sizeof(proc_table_t));
-  initialize_ptable(proc_table);
+  ptable = (proc_table_t*) malloc(sizeof(proc_table_t));
+  initialize_ptable();
   
   VM_setup(idle_user_pt, idle_kstack_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
   trap_setup(); // set up trap handlers
-  int idle_pid = PCB_setup(proc_table, -1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
+  int idle_pid = PCB_setup(-1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(idle_pid); // manipulate UserContext
+  schedule_next(); // make next ready process (idle) as running
   TracePrintf(1,"Leaving Kstart\n");
   // idle begins when KernelStart returns
 }
