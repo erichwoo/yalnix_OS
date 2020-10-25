@@ -5,10 +5,6 @@
 
 #include "kmem.h"
 
-extern free_frame_t free_frame;
-extern kernel_global_pt_t kernel_pt;
-extern void *kernel_brk; // to be modified by SetKernelBrk
-
 /*********************** Functions ***********************/
 void set_pte(pte_t *pte, int valid, int pfn, int prot) {
   if (!(pte->valid = valid)) return; // turn off valid bit, others don't matter

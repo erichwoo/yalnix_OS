@@ -5,7 +5,7 @@
 
 #include "syscall.h"
 #include <ykernel.h>
-#include "macro.h"
+#include "global.h"
 #include "process.h"
 #include "kmem.h"
 
@@ -30,9 +30,8 @@ typedef struct pipe {
   // queue of blocked writers
 } pipe_t;
 
-typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap handler function
-
 /************ Kernel Global Data **************/
+typedef void (*trap_handler_t) (UserContext* uc); // defining an arbitrary trap handler function
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs
 proc_table_t *ptable = NULL;
 free_frame_t free_frame = {0, NULL, BASE_FRAME, 0};

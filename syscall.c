@@ -138,6 +138,95 @@ int KernelReclaim (int id);
 // Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *uc) {
   TracePrintf(1, "The code of syscall is 0x%x\n", uc->code);
+  /*if (uc->code == YALNIX_FORK)
+    KernelFork();
+  else if (uc->code == YALNIX_EXEC)
+    KernelExec();
+  else if (uc->code == YALNIX_EXIT)
+    KernelExit();
+  else if (uc->code == YALNIX_WAIT)
+    KernelWait();
+  else if (uc->code == YALNIX_GETPID)
+    KernelGetPid();
+  else if (uc->code == YALNIX_BRK)
+    KernelBrk();
+  else if (uc->code == YALNIX_DELAY)
+    KernelDelay();
+  else if (uc->code == YALNIX_TTY_READ)
+    KernelTtyRead();
+  else if (uc->code == YALNIX_TTY_WRITE)
+    KernelTtyWrite();
+  */
+  
+  /*else if (uc->code == YALNIX_REGISTER)
+    KernelExit();
+  else if (uc->code == YALNIX_SEND)
+    KernelExit();
+  else if (uc->code == YALNIX_RECEIVE)
+    KernelExit();
+  else if (uc->code == YALNIX_RECEIVESPECIFIC)
+    KernelExit();
+  else if (uc->code == YALNIX_REPLY)
+    KernelExit();
+  else if (uc->code == YALNIX_FORWARD)
+    KernelExit();
+  else if (uc->code == YALNIX_COPY_FROM)
+    KernelExit();
+  else if (uc->code == YALNIX_COPY_TO)
+    KernelExit();
+  else if (uc->code == YALNIX_READ_SECTOR)
+    KernelExit();
+  else if (uc->code == YALNIX_WRITE_SECTOR)
+    KernelExit();
+  */
+
+  /*else if (uc->code == YALNIX_PIPE_INIT)
+    KernelPipeInit();
+  else if (uc->code == YALNIX_PIPE_READ)
+    KernelPipeRead();
+  else if (uc->code == YALNIX_PIPE_WRITE)
+    KernelPipeWrite();
+  */
+
+  /*else if (uc->code == YALNIX_NOP)
+    KernelExit();
+  else if (uc->code == YALNIX_SEM_INIT)
+    KernelExit();
+  else if (uc->code == YALNIX_SEM_UP)
+    KernelExit();
+  else if (uc->code == YALNIX_SEM_DOWN)
+    KernelExit();
+  */
+
+  /*else if (uc->code == YALNIX_LOCK_INIT)
+    KernelLockInit();
+  else if (uc->code == YALNIX_LOCK_ACQUIRE)
+    KernelAcquire();
+  else if (uc->code == YALNIX_LOCK_RELEASE)
+    KernelRelease();
+  else if (uc->code == YALNIX_CVAR_INIT)
+    KernelCvarInit();
+  else if (uc->code == YALNIX_CVAR_SIGNAL)
+    KernelCvarSignal();
+  else if (uc->code == YALNIX_CVAR_BROADCAST)
+    KernelCvarBroadcast();
+  else if (uc->code == YALNIX_CVAR_WAIT)
+    KernelCvarWait();
+  else if (uc->code == YALNIX_RECLAIM)
+    KernelReclaim();
+  */
+  
+  /*else if (uc->code == YALNIX_CUSTOM_0)
+    KernelExit();
+  else if (uc->code == YALNIX_CUSTOM_1)
+    KernelExit();
+  else if (uc->code == YALNIX_CUSTOM_2)
+    KernelExit();
+  else if (uc->code == YALNIX_ABORT)
+    KernelExit();
+  else if (uc->code == YALNIX_BOOT)
+    KernelExit();
+  */
 }
 
 // Check the process table to decide which process to schedule; initialize a context switch if necessary                                  

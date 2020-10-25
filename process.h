@@ -6,8 +6,8 @@
 #ifndef __PROCESS_H
 #define __PROCESS_H
 
-#include "macro.h"
-#include "kmem.h" // for page table usage
+#include "global.h"
+#include "kmem.h" // for user_pt and k_stack_pt manipulation
 
 typedef struct pcb_data {
   int pid;
@@ -46,8 +46,6 @@ typedef struct proc_table { // maybe a queue?
   pcb_ll_t* blocked;
   pcb_ll_t* defunct;
 } proc_table_t;
-
-extern proc_table_t* ptable;
 
 // pcb manipulation
 

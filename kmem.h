@@ -7,7 +7,7 @@
 #define __KMEM_H
 
 #include "ykernel.h"
-#include "macro.h"
+#include "global.h"
 
 /************ Data Structs *********/
 

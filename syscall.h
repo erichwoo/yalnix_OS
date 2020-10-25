@@ -50,11 +50,11 @@ int KernelRelease (int lock_id);
 
 int KernelCvarInit (int *cvar_idp);
 
-int KernelCvarWait (int cvar_id, int lock_id);
-
 int KernelCvarSignal (int cvar_id);
 
 int KernelCvarBroadcast (int cvar_id);
+
+int KernelCvarWait (int cvar_id, int lock_id);
 
 int KernelReclaim (int id);
 

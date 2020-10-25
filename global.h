@@ -3,10 +3,12 @@
  * Defining all kernel macros
  */
 
-#ifndef __MACRO_H
-#define __MACRO_H
+#ifndef __GLOBAL_H
+#define __GLOBAL_H
 
 #include "ykernel.h"
+
+// Macros
 
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
@@ -30,4 +32,15 @@
 #define BLOCKED 2
 #define DEFUNCT 3
 
-#endif //__MACRO_H
+// forward declarations for Globals below
+typedef struct proc_table proc_table_t;
+typedef struct f_frame free_frame_t;
+typedef struct kernel_global_pt kernel_global_pt_t;
+
+// Global Variables
+extern proc_table_t* ptable;
+extern free_frame_t free_frame;
+extern kernel_global_pt_t kernel_pt;
+extern void *kernel_brk; // to be modified by SetKernelBrk
+
+#endif //__GLOBAL_H
