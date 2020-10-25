@@ -101,22 +101,6 @@ void trap_setup(void) {
   WriteRegister(REG_VECTOR_BASE, (unsigned int) trap_vector);
 }
 
-void PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
-  // initialize pcb struct and assign values
-  pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
-  pcb->pid = helper_new_pid(user_pt->pt);
-  pcb->ppid = ppid;
-  pcb->state = READY;
-  pcb->exit_status = 0; // will be changed if process error or return value needed
-  pcb->reg1 = user_pt;
-  pcb->k_stack = k_stack_pt;
-  pcb->uc = uc;
-  // add to proc_table here
-  // for now since proc_table structure isn't decided, will add to head.
-  proc_table->head = pcb;
-  //return pcb->pid;
-}
-
 void DoIdle(void) {
   while(1) {
     TracePrintf(1,"DoIdle\n");
@@ -124,10 +108,11 @@ void DoIdle(void) {
   }
 }
 
-void idle_setup(void) {
-  pcb_t* idle = proc_table->head;
-  idle->uc->pc = DoIdle; // point to doIdle();
-  idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
+void idle_setup(int pid) {
+  pcb_t* idle = find(proc_table->new, pid);
+  idle->data->uc->pc = DoIdle; // point to doIdle();
+  idle->data->uc->sp = idle->data->reg1->stack_low; // hook up uc stack pointer to top of user stack
+  print_ptable(proc_table);
   //TracePrintf(1,"sp: 0x%08X\n", idle->reg1->stack_low);
 }
 
@@ -139,15 +124,16 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   free_frame.bit_vector = malloc(free_frame.size / CELL_SIZE + 1);
   for (int i = 0; i < free_frame.size / CELL_SIZE + 1; i++) free_frame.bit_vector[i] = (char) 0; // initialzied
   
-  user_pt_t *init_user_pt = malloc(sizeof(user_pt_t));
-  kernel_stack_pt_t *init_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
+  user_pt_t *idle_user_pt = malloc(sizeof(user_pt_t));
+  kernel_stack_pt_t *idle_kstack_pt = malloc(sizeof(kernel_stack_pt_t));
 
   proc_table = (proc_table_t*) malloc(sizeof(proc_table_t));
-
-  VM_setup(init_user_pt, init_kstack_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
+  initialize_ptable(proc_table);
+  
+  VM_setup(idle_user_pt, idle_kstack_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
   trap_setup(); // set up trap handlers
-  PCB_setup(-1, init_user_pt, init_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
-  idle_setup(); // manipulate UserContext
+  int idle_pid = PCB_setup(proc_table, -1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
+  idle_setup(idle_pid); // manipulate UserContext
   TracePrintf(1,"Leaving Kstart\n");
   // idle begins when KernelStart returns
 }
