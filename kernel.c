@@ -120,12 +120,13 @@ void idle_setup(user_pt_t* idle_user_pt, kernel_stack_pt_t* idle_kstack_pt, User
 
 pcb_t* init_load(char *name, char *args[], UserContext *uctxt) {
   user_pt_t *ipt = malloc(sizeof(user_pt_t));
+  kernel_stack_pt_t *kstack_pt = malloc(sizeof(kernel_stack_pt_t));
   WriteRegister(REG_PTBR1, (unsigned int) ipt->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
     set_pte(&ipt->pt[vpn - BASE_PAGE_1], 0, NONE, NONE);
   }
-  pcb_t *init_pcb = initialize_pcb(-1, ipt, NULL, uctxt);
+  pcb_t *init_pcb = initialize_pcb(-1, ipt, kstack_pt, uctxt);
   LoadProgram(name, args, init_pcb); 
   new_ready(init_pcb->pid);
 
