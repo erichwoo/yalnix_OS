@@ -301,9 +301,14 @@ void unblock(int pid) {
 // and makes next up on ready queue as the new current process
 void rr_preempt(void) {
   TracePrintf(1, "Preempting Round-Robin Style!\n");
+  pcb_t *this = ptable->curr; 
   ready(ptable->curr);
   ptable->curr = NULL;
   schedule_next();
+  pcb_t *next = ptable->curr; 
+  WriteRegister(REG_PTBR1, (unsigned int) next->pt);
+  WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
+  KernelContextSwitch(KCSwitch, (void *)this, (void *)next);
 }
 
 void print_ptable(void) {

@@ -115,6 +115,18 @@ void idle_setup(int pid) {
   //TracePrintf(1,"sp: 0x%08X\n", idle->reg1->stack_low);
 }
 
+void init_load(char *name, char *args[]) {
+  user_pt_t *ipt = malloc(sizeof(user_pt_t));
+  WriteRegister(REG_PTBR1, (unsigned int) ipt->pt);
+  WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
+  for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
+    set_pte(&ipt->pt[vpn - BASE_PAGE_1], 0, NONE, NONE);
+  }
+  pcb_t *init_pcb = PCB_setup(-1, ipt, NULL, uctxt);
+  LoadProgram(name, args, init_pcb); 
+  new_ready(pid);
+} 
+
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   // initialize vital global data structures
   kernel_brk =  _kernel_orig_brk; // first thing first
@@ -134,7 +146,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   trap_setup(); // set up trap handlers
   int idle_pid = PCB_setup(-1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(idle_pid); // manipulate UserContext
+  init_load(*cmd_args);
+  WriteRegister(REG_PTBR1, (unsigned int) idle_user_pt->pt);
+  WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   schedule_next(); // make next ready process (idle) as running
+  KernelContextSwitch(KCCopy, init_pcb, NULL);
+  if (proc_table->curr->pid == init_pcb->pid) uctext = init_pcb->uc;
   TracePrintf(1,"Leaving Kstart\n");
   // idle begins when KernelStart returns
 }

@@ -269,7 +269,6 @@ void TrapClock(UserContext *uc) {
     }
   }
   rr_preempt();
-  // schedule here
 }
 
 // Abort current process, switch context
