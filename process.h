@@ -8,8 +8,9 @@
 
 #include "global.h"
 #include "kmem.h" // for user_pt and k_stack_pt manipulation
+#include "cswitch.h"
 
-typedef struct pcb_data {
+typedef struct pcb {
   int pid;
   int ppid;
   // possibly pcb_t* children?
@@ -22,26 +23,26 @@ typedef struct pcb_data {
 
   UserContext *uc;
   // KernelContext *kc;
-} data_t;
-
-typedef struct pcb {
-  data_t* data;     // payload
-  struct pcb *next; // for ll and queue
 } pcb_t;
+
+typedef struct pcb_node {
+  pcb_t* data;     // payload
+  struct pcb_node *next; // for ll and queue
+} pcb_node_t;
 
 // pcb linked list
 // can be used as queue or simple ll
 typedef struct pcb_ll {
   int id; // tells which ll/queue it is use state MACROS
   int count;
-  pcb_t* head;
-  pcb_t* tail;
+  pcb_node_t* head;
+  pcb_node_t* tail;
 } pcb_ll_t;
 
 // implement round robin aka preemptive FCFS via interrupt clock
 typedef struct proc_table { // maybe a queue?
   int count; // number of current process under management
-  pcb_t *curr; // running process
+  pcb_node_t *curr; // running process
 
   pcb_ll_t* new;     // a setup pcb to be admitted to ready queue
   pcb_ll_t* ready;   // will utilize ll's queue functions
@@ -51,22 +52,22 @@ typedef struct proc_table { // maybe a queue?
 
 // pcb manipulation
 
-int PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
+pcb_t* initialize_pcb(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
 
 int get_pid(void);
 
 // pcb linked list manipulation
 
-pcb_t* find(pcb_ll_t* ll, int pid);
+pcb_node_t* find(pcb_ll_t* ll, int pid);
 
 // proc table
 
 void initialize_ptable(void);
 
 // wrappers
-void schedule_next(void);
-void new(pcb_t* pcb);
-void ready(pcb_t* pcb);
+void schedule_next(pcb_t* curr);
+void new(pcb_node_t* pcb);
+void ready(pcb_node_t* pcb);
 void block(void);
 void defunct(int rc);
 void terminate(void);

@@ -1,6 +1,9 @@
-KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p);
-KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used);
+/* Erich WOo & Boxian Wang
+ * 26 October 2020
+ * Kernel Context Switching
+ */
 
+#include "cswitch.h"
 
 KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p) {
     pcb_t *curr_pcb = (pcb_t *) curr_pcb_p, next_pcb = (pcb_t *) next_pcb_p;

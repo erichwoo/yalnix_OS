@@ -5,11 +5,7 @@
  * ==>> You might also want to save the original annotations as comments.
  */
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <ykernel.h>
-#include <load_info.h>
-#include "process.h"
+#include "load.h"
 
 /*
  * ==>> #include anything you need for your kernel here

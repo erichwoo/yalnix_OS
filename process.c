@@ -5,6 +5,10 @@
 
 #include "process.h"
 
+pcb_t* get_curr(void) {
+  return ptable->curr->data;
+}
+
 int is_empty(pcb_ll_t* ll) {
   int yes_head = (ll->head != NULL); // 0 if NULL
   int yes_tail = (ll->tail != NULL); // 0 if NULL
@@ -22,14 +26,14 @@ int is_empty(pcb_ll_t* ll) {
   return 0;
 }
 
-int compare(pcb_t* a, pcb_t* b) {
+int compare(pcb_node_t* a, pcb_node_t* b) {
   return a->data->pid - b->data->pid;
 }
 
-int PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
+pcb_t* initialize_pcb(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
   // initialize pcb struct and assign values
-  pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
-  pcb->data = (data_t*) malloc(sizeof(data_t));
+  pcb_node_t* pcb = (pcb_node_t*) malloc(sizeof(pcb_node_t));
+  pcb->data = (pcb_t*) malloc(sizeof(pcb_t));
 
   pcb->data->pid = helper_new_pid(user_pt->pt);
   pcb->data->ppid = ppid;
@@ -41,7 +45,7 @@ int PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserC
   pcb->next = NULL;
   
   new(pcb); // put pcb in NEW processes list
-  return pcb->data->pid;
+  return pcb->data;
 }
 
 int get_pid(void) {
@@ -52,10 +56,10 @@ int get_pid(void) {
   return ptable->curr->data->pid;
 }
 
-void free_pcb(pcb_t* pcb) {
+void free_pcb(pcb_node_t* pcb) {
   // free reg1, k_stack, uc;
   free(pcb->data->reg1);
-  free(pcb->data->kstack_pt);
+  free(pcb->data->k_stack);
   free(pcb->data);
   pcb->data = NULL;
   
@@ -98,7 +102,7 @@ void free_ptable(void) {
   ptable = NULL;
 }
 
-void add_head(pcb_ll_t* ll, pcb_t* pcb) {
+void add_head(pcb_ll_t* ll, pcb_node_t* pcb) {
   if (ll != NULL) {
     pcb->next = ll->head; // could be NULL aka empty
     ll->head = pcb;
@@ -109,7 +113,7 @@ void add_head(pcb_ll_t* ll, pcb_t* pcb) {
   }
 }
 
-void add_tail(pcb_ll_t* ll, pcb_t* pcb) {
+void add_tail(pcb_ll_t* ll, pcb_node_t* pcb) {
   if (ll != NULL) {
     if (is_empty(ll)) { // initially empty
       ll->head = pcb;
@@ -124,11 +128,11 @@ void add_tail(pcb_ll_t* ll, pcb_t* pcb) {
   }
 }
 
-pcb_t* remove_head(pcb_ll_t* ll) {
+pcb_node_t* remove_head(pcb_ll_t* ll) {
   if (ll == NULL || is_empty(ll)) // error or length 0
     return NULL;
 
-  pcb_t* ret = ll->head;
+  pcb_node_t* ret = ll->head;
   ll->head = ll->head->next; // move head forward
   if (ll->head == NULL) // if new head is null aka ll was length 1, make tail null too                        
     ll->tail = NULL;
@@ -139,11 +143,11 @@ pcb_t* remove_head(pcb_ll_t* ll) {
 }
 
 // since not doubly linked, takes O(n)
-pcb_t* remove_tail(pcb_ll_t* ll) {
+pcb_node_t* remove_tail(pcb_ll_t* ll) {
   if (ll == NULL || is_empty(ll))      // error or length 0
     return NULL;
 
-  pcb_t* pcb = ll->head;
+  pcb_node_t* pcb = ll->head;
   if (pcb->next == NULL) { // length 1
     ll->head == NULL;
     ll->tail == NULL;
@@ -153,23 +157,23 @@ pcb_t* remove_tail(pcb_ll_t* ll) {
 
   // traverse till reaching second to last pcb
   for (pcb = ll->head; pcb->next->next != NULL; pcb = pcb->next); // length 2+
-  pcb_t* ret = pcb->next; // save last pcb for return
+  pcb_node_t* ret = pcb->next; // save last pcb for return
   pcb->next = NULL; // clear out last node/tail
   ll->tail = pcb;   // reset tail
   ll->count--;
   return ret;
 }
 
-pcb_t* find_prev(pcb_ll_t* ll, int pid) {
+pcb_node_t* find_prev(pcb_ll_t* ll, int pid) {
   if (ll == NULL || ll->count == 0 || ll->count == 1) // error or length 0 or length 1
     return NULL;
 
-  pcb_t* prev;
+  pcb_node_t* prev;
   for (prev = ll->head; prev->next->data->pid != pid; prev = prev->next); // length 2+
   return prev; //prev will be NULL if not found
 }
 
-pcb_t* find(pcb_ll_t* ll, int pid) {
+pcb_node_t* find(pcb_ll_t* ll, int pid) {
   if (ll == NULL || is_empty(ll)) // error or length 0
     return NULL;
   
@@ -179,7 +183,7 @@ pcb_t* find(pcb_ll_t* ll, int pid) {
 }
 
 /*// copy b into a
-void copy_pcb(pcb_t* a, pcb_t* b) {
+void copy_pcb(pcb_node_t* a, pcb_node_t* b) {
   if (a != NULL && b != NULL) {
     // copy payload
     a->data = b->data;
@@ -190,12 +194,12 @@ void copy_pcb(pcb_t* a, pcb_t* b) {
 */
 
 // find and remove will not decrement proc_table
-pcb_t* remove(pcb_ll_t* ll, int pid) {
+pcb_node_t* remove(pcb_ll_t* ll, int pid) {
   if (ll == NULL || is_empty(ll))
     return NULL;
 
-  pcb_t* prev;
-  pcb_t* ret = NULL;
+  pcb_node_t* prev;
+  pcb_node_t* ret = NULL;
   // if pid to remove is head; solves length 1 and luckily pid at head
   if (ll->head->data->pid == pid)
     ret = remove_head(ll);  // count is decremented in here
@@ -221,7 +225,7 @@ void print_ll(pcb_ll_t* ll) {
   if (ll->head == NULL)
     TracePrintf(1, "NULL");
   else {
-    for (pcb_t* pcb = ll->head; pcb != NULL; pcb = pcb->next) {
+    for (pcb_node_t* pcb = ll->head; pcb != NULL; pcb = pcb->next) {
       TracePrintf(1, "%d", pcb->data->pid);
       if (pcb->next != NULL)
 	TracePrintf(1, " -> ");
@@ -231,14 +235,20 @@ void print_ll(pcb_ll_t* ll) {
 }
 
 // only works if curr is NULL
-void schedule_next(void) {
+void schedule_next(pcb_t* curr) {
   if (ptable != NULL && ptable->curr == NULL) {
     ptable->curr = remove_head(ptable->ready); // make p_table's current the next up on queue
+    if (curr != NULL) {
+      pcb_t* next = ptable->curr->data;
+      WriteRegister(REG_PTBR1, (unsigned int) next->reg1->pt);
+      WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
+      KernelContextSwitch(KCSwitch, (void *)curr, (void *)next);
+    }
     TracePrintf(1, "Process %d has been scheduled to run.\n", ptable->curr->data->pid);
   }
 }
 
-void new(pcb_t* pcb) {
+void new(pcb_node_t* pcb) {
   if (ptable!= NULL && pcb != NULL) {
     add_tail(ptable->new, pcb);
     ptable->count++; // increment count; this is only way into ptable
@@ -246,7 +256,7 @@ void new(pcb_t* pcb) {
   }
 }
 
-void ready(pcb_t* pcb) {
+void ready(pcb_node_t* pcb) {
   if (ptable != NULL && pcb != NULL) {
     add_tail(ptable->ready, pcb);
     TracePrintf(1, "Process %d added to ready queue.\n", pcb->data->pid);
@@ -283,14 +293,14 @@ void terminate(void) {
 }
 
 void new_ready(int pid) {
-  pcb_t* pcb = remove(ptable->new, pid);
+  pcb_node_t* pcb = remove(ptable->new, pid);
   if (pcb == NULL) // error pid not there
     TracePrintf(1, "Can't move from New -> Ready: pid not found\n");
   ready(pcb);
 }
 
 void unblock(int pid) {
-  pcb_t* pcb = remove(ptable->blocked, pid);
+  pcb_node_t* pcb = remove(ptable->blocked, pid);
   if (pcb == NULL)
     TracePrintf(1, "Can't move from Block -> Ready: pid not found\n");
   ready(pcb);
@@ -301,14 +311,10 @@ void unblock(int pid) {
 // and makes next up on ready queue as the new current process
 void rr_preempt(void) {
   TracePrintf(1, "Preempting Round-Robin Style!\n");
-  pcb_t *this = ptable->curr; 
+  pcb_t *curr = ptable->curr->data; 
   ready(ptable->curr);
   ptable->curr = NULL;
-  schedule_next();
-  pcb_t *next = ptable->curr; 
-  WriteRegister(REG_PTBR1, (unsigned int) next->pt);
-  WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
-  KernelContextSwitch(KCSwitch, (void *)this, (void *)next);
+  schedule_next(curr);
 }
 
 void print_ptable(void) {
