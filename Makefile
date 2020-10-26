@@ -8,14 +8,14 @@
 K_SRC_DIR = .
 
 # What are the kernel c and include files?
-K_SRCS = kernel.c kmem.c process.c syscall.c #load.c
-K_INCS = kmem.h process.h syscall.h
+K_SRCS = kmem.c process.c syscall.c load.c cswitch.c kernel.c
+K_INCS = kmem.h process.h syscall.h load.h cswitch.h global.h
 
 # Where's your user source?
-U_SRC_DIR = 
+U_SRC_DIR = .
 
 # What are the user c and include files?
-U_SRCS = 
+U_SRCS = init.c
 U_INCS = 
 
 

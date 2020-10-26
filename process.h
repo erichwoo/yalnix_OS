@@ -22,7 +22,7 @@ typedef struct pcb {
   kernel_stack_pt_t *k_stack; // copy of kernel stack page table
 
   UserContext *uc;
-  // KernelContext *kc;
+  KernelContext *kc;
 } pcb_t;
 
 typedef struct pcb_node {

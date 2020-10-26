@@ -141,13 +141,13 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
    * ==>> (rewrite the line below to match your actual data structure) 
    * ==>> proc->uc.sp = cp2; 
    */
-  proc->uc.sp = cp2;
+  proc->uc->sp = cp2;
   /*
    * Now save the arguments in a separate buffer in region 0, since
    * we are about to blow away all of region 1.
    */
   cp2 = argbuf = (char *)malloc(size);
-  if (cp2 == NULL return ERROR;
+  if (cp2 == NULL) return ERROR;
   /* 
    * ==>> You should perhaps check that malloc returned valid space 
    */
@@ -254,7 +254,7 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
    * ==>> you will need to flush the old mapping. 
    */
   for (int i = text_pg1; i < text_pg1 + li.t_npg; i++) {
-    proc->reg1->pt[i].prot = (PROT_READ | PROT_EXEC));
+    proc->reg1->pt[i].prot = (PROT_READ | PROT_EXEC);
   }
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
@@ -273,7 +273,7 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
    * ==>> (rewrite the line below to match your actual data structure) 
    * ==>> proc->uc.pc = (caddr_t) li.entry;
    */
-  proc->uc.pc = (caddr_t) li.entry;
+  proc->uc->pc = (caddr_t) li.entry;
   /*
    * Now, finally, build the argument list on the new stack.
    */

@@ -65,7 +65,7 @@ int KernelBrk (void *addr) {
   else if (new_brk_vpn < curr_brk_vpn) {
     // walk down pages startin at current brk down to new brk
     // and vacate frame for each page
-    for (int vpn = curr_brk_vpn; vpn >= next_brk_vpn; vpn--)
+    for (int vpn = curr_brk_vpn; vpn >= new_brk_vpn; vpn--)
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
   }
   // do nothing if new_brk is same as curr_brk
@@ -85,7 +85,7 @@ int KernelDelay (int clock_ticks) {
   ptable->curr->data->regs[0] = clock_ticks;
   // block current process
   block();
-  schedule_next();
+  //schedule_next(pta);
   //KCSWITCH
   return 0;
 }
@@ -258,16 +258,17 @@ void TrapKernel(UserContext *uc) {
 void TrapClock(UserContext *uc) {
   TracePrintf(1, "Clock Trap occured!\n");
   // copy uc into pcb
-  ptable->curr->data->uc = uc;
+  /*ptable->curr->data->uc = uc;
 
   // Look at all blocked and decrement clock_ticks
-  for (pcb_t* pcb = ptable->blocked->head; pcb != NULL; pcb = pcb->next) {
-    if (pcb->data->regs[0]) {
-      pcb->data->regs[0]--;
-      if (pcb->data->regs[0] == 0)
-	unblock(pcb->data->pid);
+  for (pcb_node_t* pcb_node = ptable->blocked->head; pcb_node != NULL; pcb_node = pcb_node->next) {
+    if (pcb_node->data->regs[0]) {
+      pcb_node->data->regs[0]--;
+      if (pcb_node->data->regs[0] == 0)
+	unblock(pcb_node->data->pid);
     }
   }
+  */
   rr_preempt();
 }
 
