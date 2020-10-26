@@ -154,18 +154,22 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   idle_setup(idle_user_pt, idle_kstack_pt, uctxt); // manipulate UserContext
   schedule_next(NULL); // make next ready process (idle) as running
   
+  UserContext *uctxt2 = malloc(sizeof(UserContext));
+  *uctxt2 = *uctxt;
   pcb_t* init_pcb;
   if (cmd_args[0] == NULL) {
-    init_pcb = init_load("init", cmd_args, uctxt);
+    init_pcb = init_load("init", cmd_args, uctxt2);
   }
   else
-    init_pcb = init_load(*cmd_args, cmd_args, uctxt);
+    init_pcb = init_load(*cmd_args, cmd_args, uctxt2);
 
   WriteRegister(REG_PTBR1, (unsigned int) idle_user_pt->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
   KernelContextSwitch(KCCopy, init_pcb, NULL);
-  if (ptable->curr->data->pid == init_pcb->pid) uctxt = init_pcb->uc;
+  if (ptable->curr->data->pid == init_pcb->pid) *uctxt = *(init_pcb->uc);
 
   TracePrintf(1,"Leaving Kstart\n");
+  TracePrintf(1,"stack: %d\n", ptable->curr->data->reg1->pt[LIM_PAGE_1 - 1 - BASE_PAGE_1].pfn);
   // idle begins when KernelStart returns
 }

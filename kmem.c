@@ -53,7 +53,7 @@ int get_frame(unsigned int pfn, int auto_assign) { // find a free physical frame
       n_pfn  - BASE_FRAME < free_frame.size; n_pfn++);
     free_frame.avail_pfn = n_pfn;
   }
-  //TracePrintf(1, "Got frame %d\n", pfn);
+  TracePrintf(1, "Got frame %d\n", pfn);
   //TracePrintf(1, "Next: %d\n", free_frame.avail_pfn);
   return pfn;
 }
@@ -77,5 +77,6 @@ int SetKernelBrk(void *addr) {
     }
   } 
   kernel_brk = addr;
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
   return 0;
 }
