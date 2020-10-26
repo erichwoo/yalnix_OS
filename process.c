@@ -292,6 +292,8 @@ void rr_preempt(void) {
   ptable->curr = NULL;
   schedule_next();
   pcb_t *next = ptable->curr; 
+  WriteRegister(REG_PTBR1, (unsigned int) next->pt);
+  WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   KernelContextSwitch(KCSwitch, (void *)this, (void *)next);
 }
 
