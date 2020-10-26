@@ -15,7 +15,7 @@
  * copy region 0, change stack part to map to new frames above
  * return (not sure how to get one return pid, other 0. general regs in UC?)
  */
-int KernelFork (void);
+int KernelFork(void);
 
 /* Load Program with exec args and pcb_t  */
 int KernelExec (char *filename, char **argvec);
@@ -46,7 +46,31 @@ int KernelGetPid (void) {
  * add or remove page table entries depending on if addr is above or below current brk
  */
 int KernelBrk (void *addr) {
-  
+  user_pt_t* user_pt = ptable->curr->data->reg1;
+  // error if addr is DOWN into user data or UP into user stack
+  if ((unsigned int) addr >= (unsigned int) user_pt->stack_low ||
+      (unsigned int) addr <= (unsigned int) user_pt->heap_low)
+    return ERROR;
+
+  unsigned int curr_brk_vpn = (unsigned int) user_pt->heap_high >> PAGESHIFT;
+  unsigned int new_brk_vpn = (unsigned int) addr >> PAGESHIFT;
+  // if addr is above current brk 
+  if (new_brk_vpn > curr_brk_vpn) { // DEPENDS ON IF BRK IS PART OF HEAP OR NAH
+    // walk up each page starting at current brk upto new brk
+    // for each page, find free frame map it to VALID page table entry
+    for (int vpn = curr_brk_vpn + 1; vpn < new_brk_vpn; vpn++)
+      set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
+  }
+  // if addr is lower than current brk
+  else if (new_brk_vpn < curr_brk_vpn) {
+    // walk down pages startin at current brk down to new brk
+    // and vacate frame for each page
+    for (int vpn = curr_brk_vpn; vpn >= next_brk_vpn; vpn--)
+      set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
+  }
+  // do nothing if new_brk is same as curr_brk
+  user_pt->heap_high = addr;
+  return 0;
 }
 
 /* clock_ticks < 1 error checked
@@ -57,16 +81,15 @@ int KernelDelay (int clock_ticks) {
     TracePrintf(1, "Error calling KernelDelay(): clock_ticks < 0.\n");
   else if (clock_ticks == 0)
     return 0;
-  
+
+  ptable->curr->data->regs[0] = clock_ticks;
   // block current process
-  int pid = KernelGetPid();
   block();
-  for (int i = 0; i < clock_ticks; i++)
-    Pause();
-  unblock(pid);
+  schedule_next();
+  //KCSWITCH
   return 0;
 }
-
+   
 ////////////// I/O Syscalls
 
 /* Check if TtyReceive has extra chars
@@ -141,19 +164,21 @@ void TrapKernel(UserContext *uc) {
   /*if (uc->code == YALNIX_FORK)
     KernelFork();
   else if (uc->code == YALNIX_EXEC)
-    KernelExec();
+    KernelExec((char*) uc->regs[0], (char**) uc->regs[1]);
   else if (uc->code == YALNIX_EXIT)
-    KernelExit();
+    KernelExit((int) uc->regs[0]);
   else if (uc->code == YALNIX_WAIT)
-    KernelWait();
-  else if (uc->code == YALNIX_GETPID)
+    KernelWait((int*) uc->regs[0]);
+  */
+  if (uc->code == YALNIX_GETPID)
     KernelGetPid();
   else if (uc->code == YALNIX_BRK)
-    KernelBrk();
+    KernelBrk((void*) uc->regs[0]);
   else if (uc->code == YALNIX_DELAY)
-    KernelDelay();
-  else if (uc->code == YALNIX_TTY_READ)
-    KernelTtyRead();
+    KernelDelay((int) uc->regs[0]);
+  /*
+    else if (uc->code == YALNIX_TTY_READ)
+    KernelTtyRead((int) uc->regs[0], (void*) uc->regs[1], (int) uc->regs[2] );
   else if (uc->code == YALNIX_TTY_WRITE)
     KernelTtyWrite();
   */
@@ -232,6 +257,17 @@ void TrapKernel(UserContext *uc) {
 // Check the process table to decide which process to schedule; initialize a context switch if necessary                                  
 void TrapClock(UserContext *uc) {
   TracePrintf(1, "Clock Trap occured!\n");
+  // copy uc into pcb
+  ptable->curr->data->uc = uc;
+
+  // Look at all blocked and decrement clock_ticks
+  for (pcb_t* pcb = ptable->blocked->head; pcb != NULL; pcb = pcb->next) {
+    if (pcb->data->regs[0]) {
+      pcb->data->regs[0]--;
+      if (pcb->data->regs[0] == 0)
+	unblock(pcb->data->pid);
+    }
+  }
   rr_preempt();
 }
 
