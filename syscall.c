@@ -232,6 +232,7 @@ void TrapKernel(UserContext *uc) {
 // Check the process table to decide which process to schedule; initialize a context switch if necessary                                  
 void TrapClock(UserContext *uc) {
   TracePrintf(1, "Clock Trap occured!\n");
+  rr_preempt();
 }
 
 // Abort current process, switch context
