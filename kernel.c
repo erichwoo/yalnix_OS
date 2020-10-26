@@ -145,7 +145,10 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   trap_setup(); // set up trap handlers
   int idle_pid = PCB_setup(-1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(idle_pid); // manipulate UserContext
-  init_load(*cmd_args);
+  if (cmd_args[0] == NULL) {
+    init_load("init", cmd_args)
+  }
+  init_load(*cmd_args, cmd_args);
   WriteRegister(REG_PTBR1, (unsigned int) idle_user_pt->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   schedule_next(); // make next ready process (idle) as running
