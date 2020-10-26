@@ -27,10 +27,11 @@
 #define NONE 0
 
 #define TERMINATED -1
-#define RUNNING 0
-#define READY 1
-#define BLOCKED 2
-#define DEFUNCT 3
+#define NEW 0
+#define RUNNING 1
+#define READY 2
+#define BLOCKED 3
+#define DEFUNCT 4
 
 // forward declarations for Globals below
 typedef struct proc_table proc_table_t;

@@ -15,6 +15,7 @@ typedef struct pcb_data {
   // possibly pcb_t* children?
   int state;
   int rc; // return code
+  int regs[8];
   // address space
   user_pt_t *reg1; // region 1 page table management
   kernel_stack_pt_t *k_stack; // copy of kernel stack page table
@@ -31,6 +32,7 @@ typedef struct pcb {
 // pcb linked list
 // can be used as queue or simple ll
 typedef struct pcb_ll {
+  int id; // tells which ll/queue it is use state MACROS
   int count;
   pcb_t* head;
   pcb_t* tail;
@@ -72,4 +74,7 @@ void new_ready(int pid);
 void unblock(int pid);
 void rr_preempt(void);
 void print_ptable(void);
+
+//testing
+void processtest(void);
 #endif //__PROCESS_H

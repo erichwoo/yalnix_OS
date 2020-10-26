@@ -5,16 +5,21 @@
 
 #include "process.h"
 
-int isEmpty(pcb_ll_t* ll) {
-  int empty_head = (ll->head == NULL);
-  int empty_tail = (ll->tail == NULL);
-  int sum = empty_head + empty_tail;
+int is_empty(pcb_ll_t* ll) {
+  int yes_head = (ll->head != NULL); // 0 if NULL
+  int yes_tail = (ll->tail != NULL); // 0 if NULL
+  int sum = yes_head + yes_tail + ll->count; // all three should be 0 if empty
+  //  TracePrintf(1, "yes_head = %d, yes_tail = %d, ll->count = %d\n", yes_head, yes_tail, ll->count);
+  // empty
   if (sum == 0)
     return 1;
-  else if (sum == empty_head || sum == empty_tail)
-    return -1; // error one is NULL, other isn't
-  else
-    return 0;
+  // error if one of head/tail/count is 0/NULL, other(s) aren't
+  else if (sum != 0 && (yes_head == 0 || yes_tail == 0 || ll->count == 0)) {
+    TracePrintf(1, "Error - invalid ll state: head, tail, and count not matching\n");
+    return -1;
+  }
+  // not empty
+  return 0;
 }
 
 int compare(pcb_t* a, pcb_t* b) {
@@ -25,17 +30,17 @@ int PCB_setup(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserC
   // initialize pcb struct and assign values
   pcb_t* pcb = (pcb_t*) malloc(sizeof(pcb_t));
   pcb->data = (data_t*) malloc(sizeof(data_t));
-  
+
   pcb->data->pid = helper_new_pid(user_pt->pt);
   pcb->data->ppid = ppid;
-  pcb->data->state = READY;
+  //pcb->data->state = READY;
   pcb->data->rc = 0; // will be changed if process error or return value needed
   pcb->data->reg1 = user_pt;
   pcb->data->k_stack = k_stack_pt;
   pcb->data->uc = uc;
   pcb->next = NULL;
   
-  new(pcb);
+  new(pcb); // put pcb in NEW processes list
   return pcb->data->pid;
 }
 
@@ -49,14 +54,17 @@ int get_pid(void) {
 
 void free_pcb(pcb_t* pcb) {
   // free reg1, k_stack, uc;
+  free(pcb->data->reg1);
+  free(pcb->data->kstack_pt);
   free(pcb->data);
   pcb->data = NULL;
-
+  
   free(pcb);
   pcb = NULL;
 }
 
-void initialize_ll(pcb_ll_t* ll) {
+void initialize_ll(pcb_ll_t* ll, int id) {
+  ll->id = id;
   ll->count = 0;
   ll->head = NULL;
   ll->tail = NULL;
@@ -70,10 +78,10 @@ void initialize_ptable(void) {
   ptable->blocked = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
   ptable->defunct = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
 
-  initialize_ll(ptable->new);
-  initialize_ll(ptable->ready);
-  initialize_ll(ptable->blocked);
-  initialize_ll(ptable->defunct);
+  initialize_ll(ptable->new, NEW);
+  initialize_ll(ptable->ready, READY);
+  initialize_ll(ptable->blocked,BLOCKED);
+  initialize_ll(ptable->defunct, DEFUNCT);
 }
 
 void free_ptable(void) {
@@ -94,15 +102,16 @@ void add_head(pcb_ll_t* ll, pcb_t* pcb) {
   if (ll != NULL) {
     pcb->next = ll->head; // could be NULL aka empty
     ll->head = pcb;
-    if (ll->count == 0)
+    if (is_empty(ll)) {
       ll->tail = pcb;
+    }
     ll->count++;
   }
 }
 
 void add_tail(pcb_ll_t* ll, pcb_t* pcb) {
   if (ll != NULL) {
-    if (ll->count == 0) { // initially empty
+    if (is_empty(ll)) { // initially empty
       ll->head = pcb;
       ll->tail = pcb;
     }
@@ -116,25 +125,26 @@ void add_tail(pcb_ll_t* ll, pcb_t* pcb) {
 }
 
 pcb_t* remove_head(pcb_ll_t* ll) {
-  if (ll == NULL || ll->count == 0) // error or length 0
+  if (ll == NULL || is_empty(ll)) // error or length 0
     return NULL;
 
   pcb_t* ret = ll->head;
   ll->head = ll->head->next; // move head forward
   if (ll->head == NULL) // if new head is null aka ll was length 1, make tail null too                        
     ll->tail = NULL;
-  else // new head is temp->next, so if it isn't already NULL, do so before returning    
+  else // before returning removed head, make its next = NULL
     ret->next = NULL;
   ll->count--;
   return ret;
 }
 
+// since not doubly linked, takes O(n)
 pcb_t* remove_tail(pcb_ll_t* ll) {
-  if (ll == NULL || ll->count == 0)      // error or length 0
+  if (ll == NULL || is_empty(ll))      // error or length 0
     return NULL;
 
   pcb_t* pcb = ll->head;
-  if (ll->head->next == NULL) { // length 1
+  if (pcb->next == NULL) { // length 1
     ll->head == NULL;
     ll->tail == NULL;
     ll->count--;
@@ -143,7 +153,7 @@ pcb_t* remove_tail(pcb_ll_t* ll) {
 
   // traverse till reaching second to last pcb
   for (pcb = ll->head; pcb->next->next != NULL; pcb = pcb->next); // length 2+
-  pcb_t* ret = pcb->next; // save deleted pcb for return
+  pcb_t* ret = pcb->next; // save last pcb for return
   pcb->next = NULL; // clear out last node/tail
   ll->tail = pcb;   // reset tail
   ll->count--;
@@ -160,7 +170,7 @@ pcb_t* find_prev(pcb_ll_t* ll, int pid) {
 }
 
 pcb_t* find(pcb_ll_t* ll, int pid) {
-  if (ll == NULL || ll->count == 0) // error or length 0
+  if (ll == NULL || is_empty(ll)) // error or length 0
     return NULL;
   
   if (ll->head->data->pid == pid) // length 1 and found
@@ -178,25 +188,29 @@ void copy_pcb(pcb_t* a, pcb_t* b) {
   }
 }
 */
+
 // find and remove will not decrement proc_table
 pcb_t* remove(pcb_ll_t* ll, int pid) {
-  if (ll == NULL || ll->count == 0)
+  if (ll == NULL || is_empty(ll))
     return NULL;
 
   pcb_t* prev;
-  pcb_t* ret;
-  // if head; solves length 1 and luckily pid at head
+  pcb_t* ret = NULL;
+  // if pid to remove is head; solves length 1 and luckily pid at head
   if (ll->head->data->pid == pid)
     ret = remove_head(ll);  // count is decremented in here
   else {
     prev = find_prev(ll, pid);
-    ret = prev->next;
-    if (ret->next == NULL)  // if one to remove is tail
-      remove_tail(ll);      // count is decremented in here
-    else {
-      prev->next = prev->next->next; // reroute prev to next's next
-      ll->count--;
+    if (prev != NULL) {
+      ret = prev->next;
+      if (ret->next == NULL)  // if one to remove is tail
+	remove_tail(ll);      // count is decremented in here
+      else {
+	prev->next = prev->next->next; // reroute prev to next's next
+	ll->count--;
+      }
     }
+    // does nothing if prev is NULL, so ret is NULL
   }
   
   return ret; // caller must deal with freeing removed pcb
@@ -307,4 +321,3 @@ void print_ptable(void) {
   TracePrintf(1, "Defunct Processes: ");
   print_ll(ptable->defunct);
 }
-

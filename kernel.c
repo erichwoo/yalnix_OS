@@ -77,7 +77,7 @@ void VM_setup(user_pt_t *init_user_pt, kernel_stack_pt_t *init_kstack_pt) {
 void trap_setup(void) {
   // hookup trap handler funct pointers to the handler table
   trap_vector[TRAP_KERNEL] = TrapKernel;
-  trap_vector[TRAP_CLOCK] = TrapClock;
+   trap_vector[TRAP_CLOCK] = TrapClock;
   /*
   trap_vector[TRAP_ILLEGAL] = TrapIllegal;
   trap_vector[TRAP_MEMORY] = TrapMemory;
@@ -130,6 +130,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   initialize_ptable();
   
   VM_setup(idle_user_pt, idle_kstack_pt); // set up free frame tracker, set up region 1 page table and save it, set up kernel page table, fill pt registers, turn on vm (these are all global variables)
+
   trap_setup(); // set up trap handlers
   int idle_pid = PCB_setup(-1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle_setup(idle_pid); // manipulate UserContext
