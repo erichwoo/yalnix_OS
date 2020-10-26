@@ -42,7 +42,7 @@ pcb_t* initialize_pcb(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_p
   pcb->data->reg1 = user_pt;
   pcb->data->k_stack = k_stack_pt;
   pcb->data->uc = uc;
-  pcb->data->kc = NULL;
+  pcb->data->kc = (KernelContext*) malloc(sizeof(KernelContext));
   pcb->next = NULL;
   
   new(pcb); // put pcb in NEW processes list
