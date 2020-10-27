@@ -47,29 +47,32 @@ int KernelGetPid (void) {
  */
 int KernelBrk (void *addr) {
   user_pt_t* user_pt = ptable->curr->data->reg1;
+  
   // error if addr is DOWN into user data or UP into user stack
   if ((unsigned int) addr >= (unsigned int) user_pt->stack_low ||
       (unsigned int) addr <= (unsigned int) user_pt->heap_low)
     return ERROR;
 
+  unsigned int new_brk = UP_TO_PAGE(addr); // round up the page not to include
   unsigned int curr_brk_vpn = (unsigned int) user_pt->heap_high >> PAGESHIFT;
-  unsigned int new_brk_vpn = (unsigned int) addr >> PAGESHIFT;
-  // if addr is above current brk 
+  unsigned int new_brk_vpn = (unsigned int) new_brk >> PAGESHIFT; 
+
+  // since not including uptopage(addr), if addr is above current brk 
   if (new_brk_vpn > curr_brk_vpn) { // DEPENDS ON IF BRK IS PART OF HEAP OR NAH
-    // walk up each page starting at current brk upto new brk
+    // walk up each page starting at current brk upto JUST BEFORE the new brk
     // for each page, find free frame map it to VALID page table entry
-    for (int vpn = curr_brk_vpn + 1; vpn < new_brk_vpn; vpn++)
+    for (int vpn = curr_brk_vpn; vpn < new_brk_vpn; vpn++)
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
   }
   // if addr is lower than current brk
   else if (new_brk_vpn < curr_brk_vpn) {
-    // walk down pages startin at current brk down to new brk
+    // walk down pages startin at current brk down to new brk (INCLUSIVE)
     // and vacate frame for each page
     for (int vpn = curr_brk_vpn; vpn >= new_brk_vpn; vpn--)
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
   }
   // do nothing if new_brk is same as curr_brk
-  user_pt->heap_high = addr;
+  user_pt->heap_high = new_brk; // change brk to new_brk
   return 0;
 }
 
