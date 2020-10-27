@@ -68,7 +68,7 @@ int KernelBrk (void *addr) {
   else if (new_brk_vpn < curr_brk_vpn) {
     // walk down pages startin at current brk down to new brk (INCLUSIVE)
     // and vacate frame for each page
-    for (int vpn = curr_brk_vpn; vpn >= new_brk_vpn; vpn--)
+    for (int vpn = curr_brk_vpn; vpn > new_brk_vpn; vpn--)
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
   }
   // do nothing if new_brk is same as curr_brk
