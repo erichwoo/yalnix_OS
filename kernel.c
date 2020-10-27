@@ -129,7 +129,7 @@ pcb_t* init_load(char *name, char *args[], UserContext *uctxt) {
   pcb_t *init_pcb = initialize_pcb(-1, ipt, kstack_pt, uctxt);
   LoadProgram(name, args, init_pcb); 
   new_ready(init_pcb->pid);
-
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
   return init_pcb;
 } 
 
@@ -165,10 +165,11 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
   WriteRegister(REG_PTBR1, (unsigned int) idle_user_pt->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
-  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
+  
   KernelContextSwitch(KCCopy, init_pcb, NULL);
+  
   if (ptable->curr->data->pid == init_pcb->pid) *uctxt = *(init_pcb->uc);
-
+  
   TracePrintf(1,"Leaving Kstart\n");
   TracePrintf(1,"stack: %d\n", ptable->curr->data->reg1->pt[LIM_PAGE_1 - 1 - BASE_PAGE_1].pfn);
   // idle begins when KernelStart returns

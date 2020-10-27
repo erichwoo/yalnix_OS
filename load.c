@@ -208,6 +208,8 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
   for (int i = LIM_PAGE_1 - 1 - BASE_PAGE_1; i >= LIM_PAGE_1 - stack_npg - BASE_PAGE_1 ; i--) {
     set_pte(&proc->reg1->pt[i], 1, get_frame(NONE, AUTO), (PROT_READ | PROT_WRITE));
   }
+
+  proc->reg1->heap_low = proc->reg1->heap_high = (data_pg1 + data_npg + LIM_PAGE_0) << PAGESHIFT;
   /*
    * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
    */
@@ -255,8 +257,9 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
    */
   for (int i = text_pg1; i < text_pg1 + li.t_npg; i++) {
     proc->reg1->pt[i].prot = (PROT_READ | PROT_EXEC);
+    WriteRegister(REG_TLB_FLUSH, (i + LIM_PAGE_0) << PAGESHIFT);
   }
-  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
 
 
   
