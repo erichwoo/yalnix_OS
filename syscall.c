@@ -267,11 +267,12 @@ void TrapClock(UserContext *uc) {
   // Look at all blocked and decrement clock_ticks
   for (pcb_node_t* pcb_node = ptable->blocked->head; pcb_node != NULL; pcb_node = pcb_node->next) {
     if (pcb_node->data->regs[0]) { // if delayed
-      TracePrintf(1, "Pid %d's delay has been decremented and is now %d\n", pcb_node->data->pid, pcb_node->data->regs[0]);
       pcb_node->data->regs[0]--;
-      if (pcb_node->data->regs[0] == 0)
+      TracePrintf(1, "Pid %d's delay has been decremented and is now %d\n", pcb_node->data->pid, pcb_node->data->regs[0]);
+      if (pcb_node->data->regs[0] == 0) {
 	TracePrintf(1, "Pid %d is being unblocked from its delay\n", pcb_node->data->pid);
 	unblock(pcb_node->data->pid);
+      }
     }
   }
 

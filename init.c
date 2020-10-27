@@ -1,17 +1,17 @@
 #include "yuser.h"
 
 int main(int argc, char* argv[]) {
-  if (strcmp(argv[1], "0")) {
+  if (strcmp(argv[1], "0") == 0) {
     while(1) {
       TracePrintf(1,"DoInit\n");
       Pause();
     }
-  } else if (strcmp(*argv + 1, "1")) {
+  } else if (strcmp(argv[1], "1") == 0) {
     while(1) {
       TracePrintf(1,"DoInit\n");
       Delay(3);
     }
-  } else {
+  } else if (strcmp(argv[1], "2") == 0) {
     while(1) {
       TracePrintf(1,"My pid: %d\n", GetPid());
       Pause();

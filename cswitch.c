@@ -7,7 +7,7 @@
 
 KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p) {
     pcb_t *curr_pcb = (pcb_t *) curr_pcb_p, *next_pcb = (pcb_t *) next_pcb_p;
-    TracePrintf(0, "kcswitch");
+    //TracePrintf(0, "kcswitch");
     *(curr_pcb->kc) = *kc_in;
 
     for (int vpn = BASE_PAGE_KSTACK; vpn < LIM_PAGE_KSTACK; vpn++) {
@@ -41,8 +41,8 @@ KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used) {
     }
     set_pte(&kernel_pt.pt[dummy - BASE_PAGE_0], 0, NONE, NONE);
     
-    TracePrintf(0, "kccopy\n");
-    TracePrintf(0, "base %d\n", BASE_PAGE_KSTACK);
-    TracePrintf(0, "dummy %d\n", dummy);
+    //TracePrintf(0, "kccopy\n");
+    //TracePrintf(0, "base %d\n", BASE_PAGE_KSTACK);
+    //TracePrintf(0, "dummy %d\n", dummy);
     return kc_in; // go back
 }
