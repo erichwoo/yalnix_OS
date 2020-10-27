@@ -58,14 +58,14 @@ int KernelBrk (void *addr) {
   if (new_brk_vpn > curr_brk_vpn) { // DEPENDS ON IF BRK IS PART OF HEAP OR NAH
     // walk up each page starting at current brk upto new brk
     // for each page, find free frame map it to VALID page table entry
-    for (int vpn = curr_brk_vpn + 1; vpn < new_brk_vpn; vpn++)
+    for (int vpn = curr_brk_vpn + 1; vpn <= new_brk_vpn; vpn++)
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
   }
   // if addr is lower than current brk
   else if (new_brk_vpn < curr_brk_vpn) {
     // walk down pages startin at current brk down to new brk
     // and vacate frame for each page
-    for (int vpn = curr_brk_vpn; vpn >= new_brk_vpn; vpn--)
+    for (int vpn = curr_brk_vpn; vpn > new_brk_vpn; vpn--)
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
   }
   // do nothing if new_brk is same as curr_brk
