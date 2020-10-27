@@ -4,7 +4,7 @@ char* global_var = "abcdef";
 
 int main(int argc, char* argv[]) {
   //DEFAULT
-  if (strcmp(argv[1], "0") == 0) {
+  if (argc == 1) {
     while(1) {
       TracePrintf(1,"DoInit\n");
       Pause();
@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
   // KERNELDELAY
   else if (strcmp(argv[1], "1") == 0) {
     while(1) {
-      TracePrintf(1,"DoInit\n");
+      TracePrintf(1,"Delaying 3 clock_ticks\n");
       Delay(3);
     }
   }
@@ -34,12 +34,12 @@ int main(int argc, char* argv[]) {
       text = main;
       data = &global_var;
       stack = &data;
-      heap = malloc(256);
+      heap = malloc(4096);
 
       TracePrintf(0, "an address on the stack       : 0x%08x\n", (int) stack);
       TracePrintf(0, "an address in the heap        : 0x%08x\n", (int) heap);
       TracePrintf(0, "an address in the data segment: 0x%08x\n", (int) data);
-      TracePrintf(0, "an address on the text        : 0x%08x\n", (int) text);
+
       TracePrintf(0, "\n\n");
       // brk below heap : invalid
       TracePrintf(0, "Brk-ing into data segment...\n");
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
       Brk(heap);
       // brk above brk : valid, brk should increase
       TracePrintf(0, "Brk-ing above heap but below stack...\n");
-      Brk(heap + 4097);
+      Brk(heap + 10000);
       // brk into stack : invalid
       TracePrintf(0, "Brk-ing into stack...\n");
       Brk(stack);

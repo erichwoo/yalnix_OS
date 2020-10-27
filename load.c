@@ -209,8 +209,8 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
     set_pte(&proc->reg1->pt[i], 1, get_frame(NONE, AUTO), (PROT_READ | PROT_WRITE));
   }
 
-  proc->reg1->heap_low = proc->reg1->heap_high = (data_pg1 + data_npg + LIM_PAGE_0) << PAGESHIFT;
-  proc->reg1->stack_low = (LIM_PAGE_1 - stack_npg) << PAGESHIFT;
+  proc->reg1->heap_low = proc->reg1->heap_high = (void*) ((data_pg1 + data_npg + LIM_PAGE_0) << PAGESHIFT);
+  proc->reg1->stack_low = (void*) ((LIM_PAGE_1 - stack_npg) << PAGESHIFT);
   /*
    * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
    */

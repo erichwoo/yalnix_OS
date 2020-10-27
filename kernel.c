@@ -157,12 +157,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   UserContext *uctxt2 = malloc(sizeof(UserContext));
   *uctxt2 = *uctxt;
   pcb_t* init_pcb;
-  if (cmd_args[0] == NULL) {
-    init_pcb = init_load("init", NULL, uctxt2);
-  }
-  else
-    init_pcb = init_load(cmd_args[0], cmd_args, uctxt2);
 
+  if (cmd_args[0] == NULL) {
+    char* arg[] = {"init", NULL};
+    init_pcb = init_load(arg[0], arg, uctxt2);
+  }
+  else {
+    init_pcb = init_load(cmd_args[0], cmd_args, uctxt2);
+  }
   WriteRegister(REG_PTBR1, (unsigned int) idle_user_pt->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
   

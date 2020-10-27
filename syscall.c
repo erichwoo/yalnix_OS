@@ -47,6 +47,8 @@ int KernelGetPid (void) {
  */
 int KernelBrk (void *addr) {
   user_pt_t* user_pt = ptable->curr->data->reg1;
+
+  // next lines arefor testing
   TracePrintf(1, "The stack starts at     0x%x\n", user_pt->stack_low);
   TracePrintf(1, "The brk is currently    0x%x\n", user_pt->heap_high);
   TracePrintf(1, "The heap starts at      0x%x\n", user_pt->heap_low);
@@ -68,7 +70,7 @@ int KernelBrk (void *addr) {
     // for each page, find free frame map it to VALID page table entry
     for (int vpn = curr_brk_vpn; vpn < new_brk_vpn; vpn++) {
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
-      TracePrintf(1, "Allocating page %d\n", vpn);
+      WriteRegister(REG_TLB_FLUSH, vpn << PAGESHIFT);
     }
   }
   // if addr is lower than current brk
@@ -77,7 +79,7 @@ int KernelBrk (void *addr) {
     // and vacate frame for each page
     for (int vpn = curr_brk_vpn; vpn > new_brk_vpn; vpn--) {
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
-      TracePrintf(1, "Deallocating page %d\n", vpn);
+      WriteRegister(REG_TLB_FLUSH, vpn << PAGESHIFT);
     }
   }
   // do nothing if new_brk is same as curr_brk

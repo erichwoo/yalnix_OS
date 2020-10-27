@@ -248,8 +248,7 @@ void schedule_next(void) {
       WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
       KernelContextSwitch(KCSwitch, (void *)curr->data, (void *)next);
     } // if curr is NULL, means this was first process/idle
-    else
-      TracePrintf(1, "ptable->curr was NULL when scheduling next process\n");
+
     TracePrintf(1, "Process %d has been scheduled to run.\n", ptable->curr->data->pid);
   }
 }
