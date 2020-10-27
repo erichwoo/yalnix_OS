@@ -65,7 +65,7 @@ pcb_node_t* find(pcb_ll_t* ll, int pid);
 void initialize_ptable(void);
 
 // wrappers
-void schedule_next(pcb_t* curr);
+void schedule_next(void);
 void new(pcb_node_t* pcb);
 void ready(pcb_node_t* pcb);
 void block(void);

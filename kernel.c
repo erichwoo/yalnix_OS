@@ -152,7 +152,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   trap_setup(); // set up trap handlers
 
   idle_setup(idle_user_pt, idle_kstack_pt, uctxt); // manipulate UserContext
-  schedule_next(NULL); // make next ready process (idle) as running
+  schedule_next(); // make next ready process (idle) as running
   
   UserContext *uctxt2 = malloc(sizeof(UserContext));
   *uctxt2 = *uctxt;

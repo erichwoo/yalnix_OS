@@ -72,7 +72,7 @@ int KernelBrk (void *addr) {
       set_pte(&user_pt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(user_pt->pt[vpn - BASE_PAGE_1].pfn), NONE);
   }
   // do nothing if new_brk is same as curr_brk
-  user_pt->heap_high = new_brk; // change brk to new_brk
+  user_pt->heap_high = (void*) new_brk; // change brk to new_brk
   return 0;
 }
 
@@ -85,11 +85,12 @@ int KernelDelay (int clock_ticks) {
   else if (clock_ticks == 0)
     return 0;
 
+  // assign number of ticks to current pcb's reg
   ptable->curr->data->regs[0] = clock_ticks;
   // block current process
+  TracePrintf(1, "Pid %d blocking for %d clock_ticks...\n", ptable->curr->data->pid, clock_ticks);
   block();
-  //schedule_next(pta);
-  //KCSWITCH
+  schedule_next();
   return 0;
 }
    
@@ -261,17 +262,20 @@ void TrapKernel(UserContext *uc) {
 void TrapClock(UserContext *uc) {
   TracePrintf(1, "Clock Trap occured!\n");
   // copy uc into pcb
-  /*ptable->curr->data->uc = uc;
+  ptable->curr->data->uc = uc;
 
   // Look at all blocked and decrement clock_ticks
   for (pcb_node_t* pcb_node = ptable->blocked->head; pcb_node != NULL; pcb_node = pcb_node->next) {
-    if (pcb_node->data->regs[0]) {
+    if (pcb_node->data->regs[0]) { // if delayed
+      TracePrintf(1, "Pid %d's delay has been decremented and is now %d\n", pcb_node->data->pid, pcb_node->data->regs[0]);
       pcb_node->data->regs[0]--;
       if (pcb_node->data->regs[0] == 0)
+	TracePrintf(1, "Pid %d is being unblocked from its delay\n", pcb_node->data->pid);
 	unblock(pcb_node->data->pid);
     }
   }
-  */
+
+  // preempt
   rr_preempt();
 }
 

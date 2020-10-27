@@ -236,15 +236,20 @@ void print_ll(pcb_ll_t* ll) {
 }
 
 // only works if curr is NULL
-void schedule_next(pcb_t* curr) {
-  if (ptable != NULL && ptable->curr == NULL) {
-    ptable->curr = remove_head(ptable->ready); // make p_table's current the next up on queue
-    if (curr != NULL) {
+void schedule_next(void) {
+  if (ptable != NULL) {
+    pcb_node_t* curr = ptable->curr;  //track what was at curr
+    ptable->curr = remove_head(ptable->ready); // replace p_table's curr with the next up on queue
+
+    // do the kernel switching if there is a previous process to switch from
+    if (curr != NULL) { // aka need to switch from previous process to newly scheduled process
       pcb_t* next = ptable->curr->data;
       WriteRegister(REG_PTBR1, (unsigned int) next->reg1->pt);
       WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
-      KernelContextSwitch(KCSwitch, (void *)curr, (void *)next);
-    }
+      KernelContextSwitch(KCSwitch, (void *)curr->data, (void *)next);
+    } // if curr is NULL, means this was first process/idle
+    else
+      TracePrintf(1, "ptable->curr was NULL when scheduling next process\n");
     TracePrintf(1, "Process %d has been scheduled to run.\n", ptable->curr->data->pid);
   }
 }
@@ -264,21 +269,21 @@ void ready(pcb_node_t* pcb) {
   }
 }
 
+// doesnt clear out curr
 void block(void) {
   if (ptable != NULL && ptable->curr != NULL) {
     int pid = ptable->curr->data->pid;
     add_tail(ptable->blocked, ptable->curr);
-    ptable->curr = NULL;
     TracePrintf(1, "Current Process %d moved to blocked.\n", pid);
   }
 }
 
+// doesn't clear out curr
 void defunct(int rc) {
   if (ptable != NULL && ptable->curr != NULL) {
     int pid = ptable->curr->data->pid;
     ptable->curr->data->rc = rc;
     add_tail(ptable->defunct, ptable->curr);
-    ptable->curr = NULL;
     TracePrintf(1, "Current Process %d moved to defunct with rc %d.\n", pid, rc);
   }
 }
@@ -312,10 +317,8 @@ void unblock(int pid) {
 // and makes next up on ready queue as the new current process
 void rr_preempt(void) {
   TracePrintf(1, "Preempting Round-Robin Style!\n");
-  pcb_t *curr = ptable->curr->data; 
   ready(ptable->curr);
-  ptable->curr = NULL;
-  schedule_next(curr);
+  schedule_next();
 }
 
 void print_ptable(void) {
