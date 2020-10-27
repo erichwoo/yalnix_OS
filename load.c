@@ -205,11 +205,12 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
    * ==>> protection of (PROT_READ | PROT_WRITE).
    */
   
-  for (int i = LIM_PAGE_1 - 1 - BASE_PAGE_1; i >= LIM_PAGE_1 - stack_npg - BASE_PAGE_1 ; i--) {
+  for (int i = LIM_PAGE_1 - 1 - BASE_PAGE_1; i >= LIM_PAGE_1 - stack_npg - BASE_PAGE_1; i--) {
     set_pte(&proc->reg1->pt[i], 1, get_frame(NONE, AUTO), (PROT_READ | PROT_WRITE));
   }
 
   proc->reg1->heap_low = proc->reg1->heap_high = (data_pg1 + data_npg + LIM_PAGE_0) << PAGESHIFT;
+  proc->reg1->stack_low = (LIM_PAGE_1 - stack_npg) << PAGESHIFT;
   /*
    * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
    */
