@@ -12,7 +12,13 @@ KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p
 
     for (int vpn = BASE_PAGE_KSTACK; vpn < LIM_PAGE_KSTACK; vpn++) {
         kernel_pt.pt[vpn - BASE_PAGE_0] = next_pcb->k_stack->pt[vpn - BASE_PAGE_KSTACK];
-        TracePrintf(0, "stack is now %d\n", kernel_pt.pt[vpn - BASE_PAGE_0].pfn);
+        TracePrintf(0, "stack%d is now %d\n", vpn, kernel_pt.pt[vpn - BASE_PAGE_0].pfn);
+        TracePrintf(0, "this\n");
+        WriteRegister(REG_TLB_FLUSH, vpn << PAGESHIFT);
+        char *c = (char *)(vpn << PAGESHIFT);
+        /*for (int i = 0; i+=1024; i < PAGESIZE) {
+            TracePrintf(0, "0x%x :%d\n", c+i, c[i]);
+        }*/
     }
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_KSTACK);
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
@@ -30,7 +36,10 @@ KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used) {
     int dummy = BASE_PAGE_KSTACK - 1;
     for (int vpn = BASE_PAGE_KSTACK; vpn < LIM_PAGE_KSTACK; vpn++) {
         set_pte(&kernel_pt.pt[dummy - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
-        TracePrintf(0, "memcpy %d\n", memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE));
+        WriteRegister(REG_TLB_FLUSH, dummy << PAGESHIFT);
+        memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE);
+        TracePrintf(0, "memcpy %d %d\n", dummy, vpn);
+        TracePrintf(0, "memcmp %d\n", memcmp((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE));
         //memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE);
         new_pcb->k_stack->pt[vpn - BASE_PAGE_KSTACK] = kernel_pt.pt[dummy - BASE_PAGE_0];
     }
