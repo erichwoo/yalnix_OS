@@ -111,7 +111,7 @@ void DoIdle(void) {
 
 void idle_setup(user_pt_t* idle_user_pt, kernel_stack_pt_t* idle_kstack_pt, UserContext* uctxt) {
   //pcb_t* idle = find(ptable->new, pid); // look for idle in new processes
-  pcb_t* idle = initialize_pcb(-1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
+  pcb_t* idle = pcb_init(-1, idle_user_pt, idle_kstack_pt, uctxt); // set up PCB for the first process. ppid = -1 as kernel is first process
   idle->uc->pc = DoIdle; // point to doIdle();
   idle->uc->sp = idle->reg1->stack_low; // hook up uc stack pointer to top of user stack
   new_ready(idle->pid);   // move idle from new->ready
@@ -126,7 +126,7 @@ pcb_t* init_load(char *name, char *args[], UserContext *uctxt) {
   for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
     set_pte(&ipt->pt[vpn - BASE_PAGE_1], 0, NONE, NONE);
   }
-  pcb_t *init_pcb = initialize_pcb(-1, ipt, kstack_pt, uctxt);
+  pcb_t *init_pcb = pcb_init(-1, ipt, kstack_pt, uctxt);
   LoadProgram(name, args, init_pcb); 
   new_ready(init_pcb->pid);
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);

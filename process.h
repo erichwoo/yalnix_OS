@@ -10,10 +10,17 @@
 #include "kmem.h" // for user_pt and k_stack_pt manipulation
 #include "cswitch.h"
 
+//https://stackoverflow.com/questions/3536153/c-dynamically-growing-array
+typedef struct child_array {
+  int* array; // array of pids
+  size_t used; // same as the index of next unused
+  size_t size;
+} children_t;
+  
 typedef struct pcb {
   int pid;
   int ppid;
-  // possibly pcb_t* children?
+  children_t* children;
   int state;
   int rc; // return code
   int regs[8];
@@ -52,7 +59,7 @@ typedef struct proc_table { // maybe a queue?
 
 // pcb manipulation
 
-pcb_t* initialize_pcb(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
+pcb_t* pcb_init(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
 
 int get_pid(void);
 
@@ -62,7 +69,7 @@ pcb_node_t* find(pcb_ll_t* ll, int pid);
 
 // proc table
 
-void initialize_ptable(void);
+void ptable_init(void);
 
 // wrappers
 void schedule_next(void);

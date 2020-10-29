@@ -30,13 +30,56 @@ int compare(pcb_node_t* a, pcb_node_t* b) {
   return a->data->pid - b->data->pid;
 }
 
-pcb_t* initialize_pcb(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
+void children_init(children_t* a, size_t init_size){
+  a->array = (int*) malloc(init_size * sizeof(int));
+  a->used = 0;
+  a->size = init_size;
+}
+
+void free_children(children_t* a) {
+  free(a->array);
+  a->array = NULL;
+  a->used = 0;
+  a->size = 0;
+  free(a);
+}
+
+void add_child(children_t* a, int pid) {
+  if (a->used == a->size) { // no more space in array, realloc
+    a->size *= 2; // double the size of array
+    a->array = realloc(a->array, a->size * sizeof(int));
+  }
+  a->array[a->used] = pid;
+  a->used++;
+}
+
+int remove_child(children_t* a, int pid) {
+  int shift = 0; // whether to shift left or search for pid
+  // search from 0 to the last used index
+  for (int i = 0; i < a->used - 1; i++) {
+    if (!shift) { // search for pid
+      if (a->array[i] == pid)
+	shift = 1; // make the rest of the index i shift left instead
+    }
+    else 
+      a->array[i-1] = a->array[i]; // no need to clear array[last]
+  }
+  if (shift) { // aka if pid was found and removed
+    a->used--; // doing so earlier would mess up line 60 & thus 66
+    return 0;
+  }
+  return -1;
+}
+
+pcb_t* pcb_init(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
   // initialize pcb struct and assign values
   pcb_node_t* pcb = (pcb_node_t*) malloc(sizeof(pcb_node_t));
   pcb->data = (pcb_t*) malloc(sizeof(pcb_t));
 
   pcb->data->pid = helper_new_pid(user_pt->pt);
   pcb->data->ppid = ppid;
+  pcb->data->children = (children_t*) malloc(sizeof(children_t));
+  
   //pcb->data->state = READY;
   pcb->data->rc = 0; // will be changed if process error or return value needed
   pcb->data->reg1 = user_pt;
@@ -63,19 +106,20 @@ void free_pcb(pcb_node_t* pcb) {
   free(pcb->data->k_stack);
   free(pcb->data);
   pcb->data = NULL;
+  pcb->next = NULL;
   
   free(pcb);
   pcb = NULL;
 }
 
-void initialize_ll(pcb_ll_t* ll, int id) {
+void ll_init(pcb_ll_t* ll, int id) {
   ll->id = id;
   ll->count = 0;
   ll->head = NULL;
   ll->tail = NULL;
 }
 
-void initialize_ptable(void) {
+void ptable_init(void) {
   ptable->count = 0;
   ptable->curr = NULL;
   ptable->new = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
@@ -83,10 +127,10 @@ void initialize_ptable(void) {
   ptable->blocked = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
   ptable->defunct = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
 
-  initialize_ll(ptable->new, NEW);
-  initialize_ll(ptable->ready, READY);
-  initialize_ll(ptable->blocked,BLOCKED);
-  initialize_ll(ptable->defunct, DEFUNCT);
+  ll_init(ptable->new, NEW);
+  ll_ini(ptable->ready, READY);
+  ll_init(ptable->blocked,BLOCKED);
+  ll_init(ptable->defunct, DEFUNCT);
 }
 
 void free_ptable(void) {
