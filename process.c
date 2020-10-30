@@ -30,33 +30,51 @@ int compare(pcb_node_t* a, pcb_node_t* b) {
   return a->data->pid - b->data->pid;
 }
 
-void children_init(children_t* a, size_t init_size){
-  a->array = (int*) malloc(init_size * sizeof(int));
-  a->used = 0;
-  a->size = init_size;
+void ll_init(pcb_ll_t* ll) {
+  ll->count = 0;
+  ll->head = NULL;
+  ll->tail = NULL;
+}
+
+void children_init(children_t* a) {//, size_t init_size){
+  /*a->array = (int*) malloc(init_size * sizeof(int));
+  a->count = 0;
+  a->max = init_size;
+  */
+  if (a != NULL) {
+    a->count = 0;
+    a->defunct = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
+    ll_init(a->defunct);
+  }
 }
 
 void free_children(children_t* a) {
-  free(a->array);
+  /*free(a->array);
   a->array = NULL;
-  a->used = 0;
-  a->size = 0;
+  a->count = 0;
+  a->max = 0;
   free(a);
-}
-
-void add_child(children_t* a, int pid) {
-  if (a->used == a->size) { // no more space in array, realloc
-    a->size *= 2; // double the size of array
-    a->array = realloc(a->array, a->size * sizeof(int));
+  */
+  if (a != NULL) {
+    free(a->defunct);
+    free(a);
+    a = NULL;
   }
-  a->array[a->used] = pid;
-  a->used++;
+}
+/*
+void add_child(children_t* a, int pid) {
+  if (a->count == a->max) { // no more space in array, realloc
+    a->max *= 2; // double the size of array
+    a->array = realloc(a->array, a->max * sizeof(int));
+  }
+  a->array[a->count] = pid;
+  a->count++;
 }
 
 int remove_child(children_t* a, int pid) {
   int shift = 0; // whether to shift left or search for pid
-  // search from 0 to the last used index
-  for (int i = 0; i < a->used - 1; i++) {
+  // search from 0 to the last-used index
+  for (int i = 0; i < a->count; i++) {
     if (!shift) { // search for pid
       if (a->array[i] == pid)
 	shift = 1; // make the rest of the index i shift left instead
@@ -64,24 +82,29 @@ int remove_child(children_t* a, int pid) {
     else 
       a->array[i-1] = a->array[i]; // no need to clear array[last]
   }
-  if (shift) { // aka if pid was found and removed
-    a->used--; // doing so earlier would mess up line 60 & thus 66
+  // decrement count if found and removed
+  // doing so in for loop would incorrectly leave last index un-shifted
+  if (shift) { 
+    a->count--; 
     return 0;
   }
   return -1;
 }
-
-pcb_t* pcb_init(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
+*/
+// should only call from current process
+pcb_t* pcb_init(user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc) {
   // initialize pcb struct and assign values
   pcb_node_t* pcb = (pcb_node_t*) malloc(sizeof(pcb_node_t));
   pcb->data = (pcb_t*) malloc(sizeof(pcb_t));
 
   pcb->data->pid = helper_new_pid(user_pt->pt);
-  pcb->data->ppid = ppid;
+  pcb->data->parent = ptable->curr; // if NULL, indicates idle has no parent
   pcb->data->children = (children_t*) malloc(sizeof(children_t));
+  children_init(pcb->data->chilren);
   
   //pcb->data->state = READY;
   pcb->data->rc = 0; // will be changed if process error or return value needed
+  pcb->data->regs = {0}; // set all to 0
   pcb->data->reg1 = user_pt;
   pcb->data->k_stack = k_stack_pt;
   pcb->data->uc = uc;
@@ -100,23 +123,26 @@ int get_pid(void) {
   return ptable->curr->data->pid;
 }
 
-void free_pcb(pcb_node_t* pcb) {
-  // free reg1, k_stack, uc;
+viod defunct_free_pcb(pcb_node_t* pcb) {
+  // clear parent?
+  // free children
+  // clear state
+  // clear regs
   free(pcb->data->reg1);
   free(pcb->data->k_stack);
+  //free UC
+  //free KC
+  pcb->next = NULL;
+}
+
+void free_rest_pcb(pcb_node_t* pcb) {
   free(pcb->data);
   pcb->data = NULL;
-  pcb->next = NULL;
   
   free(pcb);
   pcb = NULL;
 }
-
-void ll_init(pcb_ll_t* ll, int id) {
-  ll->id = id;
-  ll->count = 0;
-  ll->head = NULL;
-  ll->tail = NULL;
+void free_pcb(pcb_node_t* pcb) {
 }
 
 void ptable_init(void) {
@@ -125,23 +151,23 @@ void ptable_init(void) {
   ptable->new = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
   ptable->ready = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
   ptable->blocked = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
-  ptable->defunct = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
+  //ptable->defunct = (pcb_ll_t*) malloc(sizeof(pcb_ll_t));
 
-  ll_init(ptable->new, NEW);
-  ll_ini(ptable->ready, READY);
-  ll_init(ptable->blocked,BLOCKED);
-  ll_init(ptable->defunct, DEFUNCT);
+  ll_init(ptable->new);
+  ll_ini(ptable->ready);
+  ll_init(ptable->blocked);
+  //ll_init(ptable->defunct);
 }
 
 void free_ptable(void) {
   free(ptable->new);
   free(ptable->ready);
   free(ptable->blocked);
-  free(ptable->defunct);
+  //  free(ptable->defunct);
   ptable->new = NULL;
   ptable->ready = NULL;
   ptable->blocked = NULL;
-  ptable->defunct = NULL;
+  //ptable->defunct = NULL;
 
   free(ptable);
   ptable = NULL;
@@ -353,6 +379,25 @@ void unblock(int pid) {
   if (pcb == NULL)
     TracePrintf(1, "Can't move from Block -> Ready: pid not found\n");
   ready(pcb);
+}
+
+// collect for parent, then kill'em
+int collect_child(int *status_ptr) {
+  pcb_ll_t* defunct_children = ptable->curr->data->children->defunct;
+  pcb_node_t* collect = remove_head(defunct_children); // collect next up dead child
+  int pid = collect->data->pid;
+  if (status_ptr != NULL)
+    *status_ptr = collect->data->rc;
+  // free the children!!!
+  return pid;
+}
+
+// kill most of self, give parent pid and rc
+
+void give_parent(void) {
+  pcb_node_t* child = ptable->curr;
+  //defunct_free(child);
+  add_tail(child->parent->children->defunct, child);  
 }
 
 // preempt round robin style

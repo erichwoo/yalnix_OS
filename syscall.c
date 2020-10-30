@@ -25,7 +25,35 @@ int KernelExec (char *filename, char **argvec);
  * if parent is dead(not in proc table), remove from proc table
  * otherwise, leave it in proc table                          
  */
-void KernelExit (int status);
+
+// HOW SHALL WE DECREMENT PTABLE?
+void KernelExit (int status) {
+  pcb_t* pcb = ptable->curr->data;
+  // if idle 
+  if (pcb->pid == 0) {
+    // FREE LITERALLY EVERYTHING
+    // HALT I"M IDLE
+  }
+  // if process will leave behind orphans
+  if (pcb->children->count > 0) {
+    // for alive children, loop through them and NULL their parent
+    // fo defunct children, FREE THEM
+  }
+
+  pcb->rc = status;
+
+  // 
+  // if parent is alive
+  if (parent != NULL) {
+    // free everything but defnct stuff
+    give_parent();
+  }
+
+  // how do we exit?
+    
+
+  
+}
 
 /* Loop through children, removing dead children along the way
  * if there is zombie, return zombie pid and edit status_ptr if nonNULL
@@ -33,7 +61,21 @@ void KernelExit (int status);
  *      - loop again after some time? or somehow a child signals its exit
  * if no/all-dead children, return error
  */
-int KernelWait (int *status_ptr);
+int KernelWait (int *status_ptr) {
+  children_t* children = ptable->curr->data->children;
+  // no children left to wait on
+  if (children->count == 0) 
+    return ERROR;
+
+  // yes children, but no defunct
+  while (children->defunct->count == 0) { 
+    block();          // no need for mesa-style, but shorter to write
+    schedule_next();
+  }
+
+  // finally return the next defunct child pid
+  return collect_child(status_ptr);
+}
 
 /* Return pid from current pcb*/
 int KernelGetPid (void) {
@@ -177,15 +219,14 @@ int KernelReclaim (int id);
 // Examine the "code" field of user context and decide which syscall to invoke
 void TrapKernel(UserContext *uc) {
   TracePrintf(1, "The code of syscall is 0x%x\n", uc->code);
-  /*if (uc->code == YALNIX_FORK)
+  if (uc->code == YALNIX_FORK)
     KernelFork();
   else if (uc->code == YALNIX_EXEC)
     KernelExec((char*) uc->regs[0], (char**) uc->regs[1]);
-  else if (uc->code == YALNIX_EXIT)
-    KernelExit((int) uc->regs[0]);
+  //else if (uc->code == YALNIX_EXIT)
+  //KernelExit((int) uc->regs[0]);
   else if (uc->code == YALNIX_WAIT)
     KernelWait((int*) uc->regs[0]);
-  */
   if (uc->code == YALNIX_GETPID)
     KernelGetPid();
   else if (uc->code == YALNIX_BRK)

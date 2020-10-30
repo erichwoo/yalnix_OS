@@ -10,17 +10,20 @@
 #include "kmem.h" // for user_pt and k_stack_pt manipulation
 #include "cswitch.h"
 
-//https://stackoverflow.com/questions/3536153/c-dynamically-growing-array
-typedef struct child_array {
-  int* array; // array of pids
-  size_t used; // same as the index of next unused
-  size_t size;
+typedef struct children {
+  /*int* array; // array of pids
+  size_t count; // same as the index of next empty space
+  size_t max;
+  */
+  int count;  // # alive + # defunct increments on fork(), decrements on child rc-collection
+  pcb_ll_t* defunct // parent's defunct children
 } children_t;
   
 typedef struct pcb {
   int pid;
-  int ppid;
-  children_t* children;
+  //int ppid;
+  pcb_node_t* parent; // lets the child access parent quickly
+  children_t* children; // lets the parents manage (defunct) children quickly
   int state;
   int rc; // return code
   int regs[8];
@@ -40,7 +43,6 @@ typedef struct pcb_node {
 // pcb linked list
 // can be used as queue or simple ll
 typedef struct pcb_ll {
-  int id; // tells which ll/queue it is use state MACROS
   int count;
   pcb_node_t* head;
   pcb_node_t* tail;
@@ -53,13 +55,13 @@ typedef struct proc_table { // maybe a queue?
 
   pcb_ll_t* new;     // a setup pcb to be admitted to ready queue
   pcb_ll_t* ready;   // will utilize ll's queue functions
-  pcb_ll_t* blocked;
-  pcb_ll_t* defunct;
+  pcb_ll_t* blocked; 
+  //pcb_ll_t* defunct;
 } proc_table_t;
 
 // pcb manipulation
 
-pcb_t* pcb_init(int ppid, user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
+pcb_t* pcb_init(user_pt_t* user_pt, kernel_stack_pt_t* k_stack_pt, UserContext* uc);
 
 int get_pid(void);
 
