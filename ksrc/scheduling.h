@@ -13,10 +13,10 @@ typedef struct proc_table {
   ll_t *ready;
   ll_t *waiting;
   ll_t *delayed;
-  ll_t *defunct;
+  //ll_t *defunct;
 } proc_table_t;
 
-proc_table_t *initialize_proc_table(void);
+proc_table_t *proc_table_init(void);
 
 void ready(node_t *proc);
 void run_next(node_t *next);

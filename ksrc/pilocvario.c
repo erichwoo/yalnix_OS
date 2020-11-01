@@ -64,7 +64,7 @@ ttyio_t *new_ttyio(void) {
   return new;
 }
 
-io_control_t *initialize_io_control(void) {
+io_control_t *io_control_init(void) {
   io_control_t *io = malloc(sizeof(io_control_t));
   for (int i = 0; i < NUM_TERMINALS; i++) {
     io->in[i] = new_ttyio();
@@ -264,7 +264,7 @@ int destroy_cvar(node_t *cvar_n) {
 
 /// pilocvar
 
-pilocvar_t *initialize_pilocvar(void) {
+pilocvar_t *pilocvar_init(void) {
   pilocvar_t *p = malloc(sizeof(pilocvar_t));
   p->count = 0;
   p->pipe = new_ll();

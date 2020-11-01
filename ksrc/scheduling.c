@@ -15,13 +15,13 @@ extern node_t *init_node, *idle_node;
 extern int pilocvar_id;
 
 
-proc_table_t *initialize_proc_table(void) {
+proc_table_t *proc_table_init(void) {
   proc_table_t *p = malloc(sizeof(proc_table_t));
   p->running = NULL;
   p->waiting = new_ll();
   p->ready = new_ll();
   p->delayed = new_ll();
-  p->defunct = new_ll();
+  //p->defunct = new_ll();
   return p;
 }
 
@@ -105,15 +105,22 @@ void check_delay(void) {
 }
 
 void defunct(void) { // move running to graveyard; run next; before doing so the process should be terminated
-  enqueue(procs->defunct, procs->running); // even if is an orphan, must move to graveyard before destroying it externally
+  //enqueue(procs->defunct, procs->running); // even if is an orphan, must move to graveyard before destroying it externally
+  node_t* parent = get_parent(procs->running);
+  if (parent != NULL) // put onto parent's defunct children queue
+    enqueue(((pcb_t*) parent->data)->d_children, procs->running);
   run_next_ready();
 }
 
 void defunct_blocked(ll_t* blocked, node_t *proc) { // for some reason if we have to kill a blocked process
-  enqueue(procs->defunct, remove(blocked, proc));
+  //enqueue(procs->defunct, remove(blocked, proc));
+  node_t* parent = get_parent(proc);
+  if (parent != NULL) // put onto parent's defunct children queue
+    enqueue(((pcb_t*) parent->data)->d_children, procs->running);
 }
 
-node_t* reap_children(ll_t* children) { // search graveyard for children; return NULL if not found; dont remove children, just orphane it.
+/*
+node_t* reap_children(ll_t* d_children) { // search graveyard for children; return NULL if not found; dont remove children, just orphane it.
   node_t *curr;
   for (curr = procs->defunct->head; curr != NULL; curr = curr->next) {
     if (has_member(children, curr)) {
@@ -135,6 +142,7 @@ void reap_orphans(void) { // destroy all defunct orphans; do so every so often (
     curr = next;
   }
 }
+*/
 
 // functionalities for wait(), fork(), exec(), exit() and rr sceduling
 

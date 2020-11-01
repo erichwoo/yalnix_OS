@@ -120,11 +120,11 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   // Traps
   trap_setup();
   // Process control
-  procs = initialize_proc_table();
+  procs = proc_table_init();
   TracePrintf(1, "Here1\n");
-  io = initialize_io_control();
+  io = io_control_init();
   TracePrintf(1, "Here2\n");
-  pilocvar = initialize_pilocvar();
+  pilocvar = pilocvar_init();
   
   //!!! cmdline args checking here
   init_load(cmd_args[0], cmd_args, uctxt);
@@ -132,6 +132,5 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   idle_setup(uctxt); 
   if (procs->running == init_node) TracePrintf(1, "Leaving KStart\n");
   //*uctxt = ((pcb_t *)init_node->data)->uc;
-  restore_uc(uctxt); // by design choice both init and idle would go through here.
-  
+  restore_uc(uctxt); // by design choice both init and idle would go through here.  
 }

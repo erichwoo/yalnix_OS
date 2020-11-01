@@ -13,7 +13,9 @@
 typedef struct pcb {
   int pid;
   node_t *parent;
-  ll_t *children;
+  //ll_t* children;
+  ll_t *a_children; // alive children
+  ll_t *d_children; // defunct children
   user_pt_t *userpt; // user page table
   kernel_stack_pt_t *kstack; // copy of kernel stack page table
   UserContext uc;

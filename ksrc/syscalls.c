@@ -32,26 +32,44 @@ int KernelExec (char *filename, char **argvec) {
 
 void KernelExit (int status) {
   if (procs->running == init_node) Halt();
-  reap_orphans(); // do the good deed
+  //reap_orphans(); // do the good deed
   process_terminate(procs->running, status);
   TracePrintf(1, "child is %d\n", status);
-  check_wait(get_parent(procs->running));
-  defunct();
+  //check_wait(get_parent(procs->running));
+  //defunct();
+  
+  // if parent not dead, put on parent's d_children
+  // and check if parent is waiting
+  node_t* parent = get_parent(procs->running);
+  if (parent != NULL) {
+    check_wait(parent); // unblock if parent was waiting
+    defunct(); // give self to parent and schdeule next
+  }
+  // otherwise if parent IS dead, destroy process
+  else
+    process_destroy(procs->running);
 }
 
 int KernelWait (int *status_ptr) {
   // !!!check parameter here, make sure is writable
 
   pcb_t *parent = procs->running->data;
-  if (is_empty(parent->children)) return ERROR;
+  // if(is_empty(parent->children)) return ERROR;
+  if (is_empty(parent->a_children) || is_empty(parent->d_children))
+    return ERROR;
 
   node_t *child;
-  while ((child = reap_children(parent->children)) == NULL) block_wait(); // have no dead babies
+  //while ((child = reap_children(parent->children)) == NULL) block_wait(); // have no dead babies
+  while ((child = dequeue(parent->d_children)) == NULL)
+    block_wait();
+  
   // now I have the child
   int cid = get_pid(child);
 
   if (status_ptr != NULL) *status_ptr = child->code;
-  reap_orphans(); // destroy children
+  //reap_orphans(); // destroy children
+
+  destroy_process(child); // destroy the reaped child
   return cid;
 }
 

@@ -66,7 +66,7 @@ void destroy_buffer(buffer_t *buffer);
 // ttyio
 ttyio_t *new_ttyio(void);
 
-io_control_t *initialize_io_control(void);
+io_control_t *io_control_init(void);
 
 int write_tty(int tty_id, int len, char *src);
 
@@ -108,7 +108,7 @@ int destroy_cvar(node_t *cvar_n);
 
 // general
 
-pilocvar_t *initialize_pilocvar(void);
+pilocvar_t *pilocvar_init(void);
 
 int new_id(void);
 
