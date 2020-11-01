@@ -1,11 +1,9 @@
-#include <ykernel.h>
-#include "memory.h"
-#include "syscalls.h"
-#include "misc.h"
+/* Erich Woo & Boxian Wang
+ * 31 October 2020
+ * Trap functionality
+ */
+
 #include "traps.h"
-#include "scheduling.h"
-#include "process.h"
-#include "pilocvario.h"
 
 //////////////// Traps
 

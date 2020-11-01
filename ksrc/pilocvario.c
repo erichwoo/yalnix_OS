@@ -1,16 +1,11 @@
 /// ERROR CHECKING SHOULD BE DONE AT THE LEVEL CLOSEST TO THE INPUT
 /// STRUCTURAL/ABSTRACT CODE SHOULD DO MINIMUM ERROR CHECKING, BUT MOSTLY SANITY CHECKS
 
-#include <ykernel.h>
-#include "linked_list.h"
-#include "scheduling.h"
 #include "pilocvario.h"
-
 
 extern pilocvar_t *pilocvar;
 extern proc_table_t *procs;
 extern io_control_t *io;
-
 
 // buffer
 

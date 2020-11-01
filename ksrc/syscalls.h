@@ -3,11 +3,16 @@
  * header file for syscalls.c
  */
 
-#ifndef _syscalls_h
-#define _syscalls_h
+#ifndef __SYSCALLS_H
+#define __SYSCALLS_H
 
 #include <ykernel.h>
-
+#include "memory.h"
+#include "linked_list.h"
+#include "process.h"
+#include "scheduling.h"
+#include "pilocvario.h"
+#include "misc.h"
 
 /////////////// Basic Process Coordination
 
@@ -58,4 +63,4 @@ int KernelCvarWait (int cvar_id, int lock_id);
 int KernelReclaim (int id);
 
 
-#endif 
+#endif // __SYSCALLS_H

@@ -1,10 +1,12 @@
 /// ERROR CHECKING SHOULD BE DONE AT THE LEVEL CLOSEST TO THE INPUT
 /// STRUCTURAL/ABSTRACT CODE SHOULD DO MINIMUM ERROR CHECKING, BUT MOSTLY SANITY CHECKS
 
+#ifndef __PILOCVARIO_H
+#define __PILOCVARIO_H
+
 #include <ykernel.h>
 #include "linked_list.h"
 #include "scheduling.h"
-
 
 // buffer
 typedef struct buffer {
@@ -118,3 +120,4 @@ node_t *find_lock(int id);
 
 node_t *find_cvar(int id);
 
+#endif //__PILOCVARIO_H

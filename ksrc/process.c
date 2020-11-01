@@ -3,11 +3,7 @@
  * process manipulation
  */
 
-#include <ykernel.h>
-#include "linked_list.h"
 #include "process.h"
-#include "memory.h"
-
 
 /******** PCB management *******/
 

@@ -3,10 +3,13 @@
  * Process structures header file
  */
 
-#ifndef _scheduling_h
-#define _scheduling_h
+#ifndef __SCHEDULING_H
+#define __SCHEDULING_H
 
+#include <ykernel.h>
+#include "process.h"
 #include "linked_list.h"
+#include "misc.h"
 
 typedef struct proc_table {
   node_t *running;
@@ -38,4 +41,4 @@ node_t* reap_children(ll_t* children);
 void reap_orphans(void);
 
 
-#endif //__PROCESS_H
+#endif //__SCCHEDULING_H

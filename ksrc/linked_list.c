@@ -3,7 +3,6 @@
  * process manipulation
  */
 
-#include <ykernel.h>
 #include "linked_list.h"
 
 /******** doubly linked list ****/

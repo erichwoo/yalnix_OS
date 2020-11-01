@@ -1,11 +1,9 @@
-#include <ykernel.h>
+/* Erich Woo & Boxian Wang
+ * 31 October 2020
+ * Syscall FUnctionality
+ */
+
 #include "syscalls.h"
-#include "memory.h"
-#include "linked_list.h"
-#include "process.h"
-#include "scheduling.h"
-#include "pilocvario.h"
-#include "misc.h"
 
 /////////////// Basic Process Coordination
 extern proc_table_t *procs;

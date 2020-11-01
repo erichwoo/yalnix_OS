@@ -3,8 +3,8 @@
  * header file for load.c
  */
 
-#ifndef _misc_h
-#define _misc_h
+#ifndef __MISC_H
+#define __MISC_H
 
 #include <ykernel.h>
 #include "process.h"
@@ -17,4 +17,4 @@ void save_uc(UserContext *uc);
 void restore_uc(UserContext *uc);
 void add_return_val(int r);
 
-#endif 
+#endif // __MISC_H

@@ -3,8 +3,8 @@
  * Process structures header file
  */
 
-#ifndef _process_h
-#define _process_h
+#ifndef __PROCESS_H
+#define __PROCESS_H
 
 #include "linked_list.h"
 #include "memory.h"

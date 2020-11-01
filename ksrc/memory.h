@@ -3,15 +3,15 @@
  * header file for kmem.c
  */
 
-#ifndef __memory_h
-#define __memory_h
+#ifndef __MEMORY_H
+#define __MEMORY_H
 
 #include <ykernel.h>
 
 #define NUM_PAGES_1 (VMEM_1_SIZE / PAGESIZE)
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
 #define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
-#define BASE_PAGE_0 (VMEM_0_BASE >> PAGESHIFT) // starting page num of reg 0                               
+#define BASE_PAGE_0 (VMEM_0_BASE >> PAGESHIFT) // starting page num of reg 0
 #define LIM_PAGE_0 (VMEM_0_LIMIT >> PAGESHIFT) // first page above reg 0                                   
 #define BASE_PAGE_1 (VMEM_1_BASE >> PAGESHIFT) // starting page num of reg 1                               
 #define LIM_PAGE_1 (VMEM_1_LIMIT >> PAGESHIFT) // first page above reg 1                                   
@@ -64,4 +64,4 @@ void destroy_usermem(user_pt_t *userpt);
 
 void destroy_kstack(kernel_stack_pt_t* kstack);
 
-#endif //__KMEM_H
+#endif //__MEMORY_H

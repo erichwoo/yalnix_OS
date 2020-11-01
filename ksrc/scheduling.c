@@ -3,11 +3,7 @@
  * process manipulation
  */
 
-#include <ykernel.h>
-#include "process.h"
-#include "linked_list.h"
 #include "scheduling.h"
-#include "misc.h"
 
 /******** Process management ********/
 extern proc_table_t *procs;

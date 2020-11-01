@@ -3,8 +3,10 @@
  * Process structures header file
  */
 
-#ifndef _linked_list_h
-#define _linked_list_h
+#ifndef __LINKED_LIST_H
+#define __LINKED_LIST_H
+
+#include "ykernel.h"
 
 typedef struct node node_t;
 
@@ -34,4 +36,4 @@ node_t* remove(ll_t *list, node_t *n);
 int has_member(ll_t *list, node_t *n);
 node_t* find(ll_t *list, int code);
 
-#endif //__PROCESS_H
+#endif //__LINKED_LIST_H

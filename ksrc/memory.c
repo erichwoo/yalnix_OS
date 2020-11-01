@@ -3,9 +3,7 @@
  * Kernel Memory Management
  */
 
-#include <ykernel.h>
 #include "memory.h"
-
 
 extern kernel_global_pt_t kernel_pt;
 extern free_frame_t free_frame;
