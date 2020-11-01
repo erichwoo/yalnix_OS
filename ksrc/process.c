@@ -32,7 +32,7 @@ node_t *process_init(void) {
 node_t *process_copy(node_t* parent) {
   node_t *child_node = process_init();
   pcb_t *child = child_node->data, *parent_pcb = parent->data;
-  enqueue(parent_pcb->children, child_node);
+  enqueue(parent_pcb->a_children, child_node);
   child->parent = parent;
   child->uc = parent_pcb->uc;
   copy_user_mem(parent_pcb->userpt, child->userpt);

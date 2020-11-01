@@ -67,7 +67,7 @@ int KernelWait (int *status_ptr) {
   if (status_ptr != NULL) *status_ptr = child->code;
   //reap_orphans(); // destroy children
 
-  destroy_process(child); // destroy the reaped child
+  process_destroy(child); // destroy the reaped child
   return cid;
 }
 
