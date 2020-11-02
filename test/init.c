@@ -56,6 +56,10 @@ int main(int argc, char* argv[]) {
   }
   //KERNEL FORK, EXEC, and WAIT
   else if (strcmp(argv[1], "4") == 0) {
+    TracePrintf(1, "Testing Fork/Exec/Wait/Exit\n");
+    TracePrintf(1, "Waiting without a child to wait for...\n");
+    Wait(NULL);
+    TracePrintf(1, "Now testing standard cases\n");
     // This child will Delay
     int cid1 = Fork();
     if (cid1 == 0) {
@@ -77,7 +81,7 @@ int main(int argc, char* argv[]) {
     int status1, status2;
     int first_defunct = Wait(&status1);
     int second_defunct = Wait(&status2);
-    TracePrintf(1, "Child 1 pid is %d and Child 2 pid is %d\n", cid1, cid2);
+    TracePrintf(1, "Child 1 pid is %d and should exit 42\nChild 2 pid is %d and should exit 5\n", cid1, cid2);
     TracePrintf(1, "Child id %d exited first with status %d\n", first_defunct, status1);
     TracePrintf(1, "Child id %d exited second with status %d\n", second_defunct, status2);
 

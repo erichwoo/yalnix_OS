@@ -31,7 +31,7 @@ int vacate_frame(unsigned int pfn) { // mark pfn as free
   set_bit(free_frame.bit_vector, pfn - BASE_FRAME, 0);
   free_frame.filled--;
   if (pfn < free_frame.avail_pfn) free_frame.avail_pfn = pfn;
-  TracePrintf(1, "freed frame %d\n", pfn);
+  //TracePrintf(1, "freed frame %d\n", pfn);
   return 0;
 }
 
