@@ -32,7 +32,7 @@ int KernelExec (char *filename, char **argvec) {
 void KernelExit (int status) {
   TracePrintf(1, "Process %d Exiting...\n", ((pcb_t*) procs->running->data)->pid);
   if (procs->running == init_node) Halt();
-  //reap_orphans(); // do the good deed
+  reap_orphans(); // do the good deed and cleanup accumulated orphans
   process_terminate(procs->running, status);
   TracePrintf(1, "Exit status is %d\n", status);
   //check_wait(get_parent(procs->running));
@@ -61,7 +61,7 @@ int KernelWait (int *status_ptr) {
 
   if (status_ptr != NULL) *status_ptr = child->code;
   process_destroy(child); // destroy the reaped child
-  reap_orphans(); // also do the good deed and cleanup accumulated orphans
+  reap_orphans(); // do the good deed
   return cid;
 }
 
