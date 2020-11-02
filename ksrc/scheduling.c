@@ -18,6 +18,7 @@ proc_table_t *proc_table_init(void) {
   p->ready = new_ll();
   p->delayed = new_ll();
   //p->defunct = new_ll();
+  p->orphans = new_ll();
   return p;
 }
 
@@ -100,11 +101,18 @@ void check_delay(void) {
   }
 }
 
-void defunct(void) { // move running to graveyard; run next; before doing so the process should be terminated
+// moves to parent's defunct list if proc has parent
+// moves to proctable's orphan list if proc doesn't
+void graveyard(void) { // move running to graveyard; run next; before doing so the process should be terminated
   //enqueue(procs->defunct, procs->running); // even if is an orphan, must move to graveyard before destroying it externally
   node_t* parent = get_parent(procs->running);
-  if (parent != NULL) // put onto parent's defunct children queue
+  if (parent != NULL) { // put onto parent's defunct children queue
     enqueue(((pcb_t*) parent->data)->d_children, procs->running);
+    check_wait(parent); // unblock if parent was waiting                                           
+    parent = NULL; // NULL parent for future errant access
+  }
+  else // add to proc table's orphan list to be reaped
+    enqueue(procs->orphans, procs->running);    
   run_next_ready();
 }
 
@@ -126,9 +134,9 @@ node_t* reap_children(ll_t* d_children) { // search graveyard for children; retu
   }
   return NULL;
 }
-
+*/
 void reap_orphans(void) { // destroy all defunct orphans; do so every so often (after wake up from wait, for example)
-  node_t *curr = procs->defunct->head;
+  /*node_t *curr = procs->defunct->head;
   while (curr != NULL) {
     node_t *next = curr->next;
     if (get_parent(curr) == NULL) {
@@ -137,8 +145,12 @@ void reap_orphans(void) { // destroy all defunct orphans; do so every so often (
     }
     curr = next;
   }
+  */
+  // remove and destroy all orphans
+  while (procs->orphans->size != 0)
+    process_destroy(dequeue(procs->orphans));
 }
-*/
+
 
 // functionalities for wait(), fork(), exec(), exit() and rr sceduling
 

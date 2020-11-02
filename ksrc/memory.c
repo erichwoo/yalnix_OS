@@ -50,10 +50,11 @@ int get_frame(unsigned int pfn, int auto_assign) { // find a free physical frame
       next_pfn - BASE_FRAME < free_frame.size; next_pfn++);
     free_frame.avail_pfn = next_pfn;
   }
-  TracePrintf(1, "Got frame %d\n", pfn);
+  // uncomment for frame tracking
+  /*TracePrintf(1, "Got frame %d\n", pfn);
   TracePrintf(1, "Next free: %d\n", free_frame.avail_pfn);
   TracePrintf(1, "left: %d\n", free_frame.size - free_frame.filled);
-
+  */
   return pfn;
 }
 

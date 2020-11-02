@@ -10,6 +10,7 @@ extern proc_table_t *procs;
 extern node_t *init_node, *idle_node;
 
 int KernelFork(void) {
+  TracePrintf(1, "Process %d Fork-ing\n", ((pcb_t*) procs->running->data)->pid);
   node_t *parent = procs->running;
   node_t *child_node = process_copy(parent);
   ready(child_node); // must do it here, because the next line would copy the kernel
@@ -22,40 +23,34 @@ int KernelFork(void) {
 /* Load Program with exec args and pcb_t  */
 int KernelExec (char *filename, char **argvec) {
   // !!!check parameters here, make sure is legal and readable and are actual strings and have NULL
-
+  TracePrintf(1, "Process %d Exec-ing into program %s\n", ((pcb_t*) procs->running->data)->pid, filename);
 
   LoadProgram(filename, argvec, procs->running->data); // good to go
   return 0; // pretend to return something, if ERROR we actually return to the calling function (if applicable)
 }
 
 void KernelExit (int status) {
+  TracePrintf(1, "Process %d Exiting...\n", ((pcb_t*) procs->running->data)->pid);
   if (procs->running == init_node) Halt();
   //reap_orphans(); // do the good deed
   process_terminate(procs->running, status);
-  TracePrintf(1, "child is %d\n", status);
+  TracePrintf(1, "Exit status is %d\n", status);
   //check_wait(get_parent(procs->running));
   //defunct();
   
-  // if parent not dead, put on parent's d_children
-  // and check if parent is waiting
-  node_t* parent = get_parent(procs->running);
-  if (parent != NULL) {
-    check_wait(parent); // unblock if parent was waiting
-    defunct(); // give self to parent and schdeule next
-  }
-  // otherwise if parent IS dead, destroy process
-  else
-    process_destroy(procs->running);
+  graveyard(); // give self to parent or orphan self, and schdeule next
 }
 
 int KernelWait (int *status_ptr) {
   // !!!check parameter here, make sure is writable
-
+  TracePrintf(1, "Process %d Waiting for a child...\n", ((pcb_t*) procs->running->data)->pid);
   pcb_t *parent = procs->running->data;
   // if(is_empty(parent->children)) return ERROR;
-  if (is_empty(parent->a_children) || is_empty(parent->d_children))
+  if (is_empty(parent->a_children) && is_empty(parent->d_children)) {
+    TracePrintf(1, "Process has no children to wait on. Returning error\n");
     return ERROR;
-
+  }
+  
   node_t *child;
   //while ((child = reap_children(parent->children)) == NULL) block_wait(); // have no dead babies
   while ((child = dequeue(parent->d_children)) == NULL)
@@ -65,9 +60,8 @@ int KernelWait (int *status_ptr) {
   int cid = get_pid(child);
 
   if (status_ptr != NULL) *status_ptr = child->code;
-  //reap_orphans(); // destroy children
-
   process_destroy(child); // destroy the reaped child
+  reap_orphans(); // also do the good deed and cleanup accumulated orphans
   return cid;
 }
 
@@ -78,6 +72,7 @@ int KernelGetPid (void) {
 
 
 int KernelUserBrk (void *addr) {
+  TracePrintf(1, "User Process %d Brk-ing to address 0x%x\n", ((pcb_t*) procs->running->data)->pid, addr);
   user_pt_t *userpt = ((pcb_t *) procs->running->data)->userpt;
   // check if has enough memory
 
@@ -107,6 +102,7 @@ int KernelUserBrk (void *addr) {
 
 
 int KernelDelay (int clock_ticks) {
+  TracePrintf(1, "Process %d Delaying for %d clock ticks\n", ((pcb_t*) procs->running->data)->pid, clock_ticks);
   if (clock_ticks < 0) {
     TracePrintf(1, "Error calling KernelDelay(): clock_ticks < 0.\n");
     return ERROR;
@@ -114,6 +110,7 @@ int KernelDelay (int clock_ticks) {
   else if (clock_ticks > 0) {
     block_delay(clock_ticks);
   }
+  TracePrintf(1, "Process %d returning from Delay\n", ((pcb_t*) procs->running->data)->pid);
   return 0;
 }
    

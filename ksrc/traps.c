@@ -102,6 +102,7 @@ void TrapMemory(UserContext *uc) {
   TracePrintf(1, "sp 0x%x\n", uc->sp);
   user_pt_t *userpt = ((pcb_t *)procs->running->data)->userpt;
   if (uc->addr >= uc->sp && (unsigned int) uc->addr < VMEM_1_LIMIT) {
+    TracePrintf(1, "Expanding User Stack...\n");
     int curr_vpn = DOWN_TO_PAGE(userpt->stack_low) >> PAGESHIFT;
     int next_vpn = DOWN_TO_PAGE(uc->sp) >> PAGESHIFT;
     TracePrintf(1, "slow 0x%x\n", userpt->stack_low);
@@ -111,8 +112,11 @@ void TrapMemory(UserContext *uc) {
     }
     userpt->stack_low = (void *) (next_vpn << PAGESHIFT);
   }
+  else 
+    helper_abort("Aborting: virtual address referenced is not within user stack low and user break\n");
   restore_uc(uc);
 }
+
 // Abort
 void TrapMath(UserContext *uc);
 // Read input and store in buffer; set a flag that wakes up blocked process waiting for input

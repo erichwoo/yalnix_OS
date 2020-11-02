@@ -42,6 +42,7 @@ node_t *process_copy(node_t* parent) {
 // terminate a process, meaning freeing all its frames (user), orphane its children list and free it, store its return code.
 void process_terminate(node_t *proc, int rc) { // return code
   // setup process for defunct state
+  // zero/NULL variables so any future errant access is safe
   proc->code = rc;
   pcb_t *p = proc->data;
   destroy_usermem(p->userpt);
@@ -49,8 +50,7 @@ void process_terminate(node_t *proc, int rc) { // return code
     ((pcb_t *) curr->data)->parent = NULL;
   }
   free(p->children);
-  */
-  
+  */  
   // orphan alive children
   for (node_t *curr = p->a_children->head; curr != NULL; curr = curr->next) 
     ((pcb_t *) curr->data)->parent = NULL;
@@ -67,6 +67,7 @@ void process_terminate(node_t *proc, int rc) { // return code
 void process_destroy(node_t *proc) {
   pcb_t *p = proc->data;
   helper_retire_pid(p->pid);
+  p->pid = -1;
   destroy_kstack(p->kstack);
   free(p->kstack);
   free(p->userpt);

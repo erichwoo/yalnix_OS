@@ -16,7 +16,7 @@ typedef struct proc_table {
   ll_t *ready;
   ll_t *waiting;
   ll_t *delayed;
-  //ll_t *defunct;
+  ll_t *orphans;
 } proc_table_t;
 
 proc_table_t *proc_table_init(void);
@@ -35,7 +35,7 @@ void block_wait(void);
 void check_wait(node_t* parent);
 void block_delay(int delay);
 void check_delay(void);
-void defunct(void);
+void graveyard(void);
 void defunct_blocked(ll_t* blocked, node_t *proc);
 node_t* reap_children(ll_t* children);
 void reap_orphans(void);
