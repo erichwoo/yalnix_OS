@@ -121,9 +121,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
   trap_setup();
   // Process control
   procs = proc_table_init();
-  TracePrintf(1, "Here1\n");
+  // Terminal IO
   io = io_control_init();
-  TracePrintf(1, "Here2\n");
+  // Pipes, Locks, Cvars
   pilocvar = pilocvar_init();
   
   //!!! cmdline args checking here

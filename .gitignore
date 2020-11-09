@@ -1,3 +1,7 @@
+etc/
+include/
+lib/
+sample/
 DISK
 .DS_Store
 *~

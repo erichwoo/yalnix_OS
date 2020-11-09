@@ -119,7 +119,7 @@ int KernelDelay (int clock_ticks) {
 
 int KernelTtyRead (int tty_id, void *buf, int len) {
   /// !!!  check param id valid? buf?
-  return read_tty(tty_id, len, buf);
+  return read_tty(tty_id, buf, len);
 }
 
 /* Write with hardware funct TtyTransmit
@@ -127,7 +127,7 @@ int KernelTtyRead (int tty_id, void *buf, int len) {
  */
 int KernelTtyWrite (int tty_id, void *buf, int len) {
   /// !!!  check param id valid? buf?
-  return write_tty(tty_id, len, buf);
+  return write_tty(tty_id, buf, len);
 }
 
 //////////////// IPC Syscalls
@@ -143,7 +143,7 @@ int KernelPipeInit (int *pipe_idp) {
 int KernelPipeRead (int pipe_id, void *buf, int len) {
   /// check param !!!
   node_t *p = find_pipe(pipe_id); /// what if failed?
-  return read_pipe(p, len, buf);
+  return read_pipe(p, buf, len);
 }
 
 /* Check if someone is reading/writing, block if so
@@ -153,7 +153,7 @@ int KernelPipeRead (int pipe_id, void *buf, int len) {
 int KernelPipeWrite (int pipe_id, void *buf, int len) {
   /// check param !!!
   node_t *p = find_pipe(pipe_id); /// what if failed?
-  return write_pipe(p, len, buf);
+  return write_pipe(p, buf, len);
 }
 
 //////////// Synchronization Syscalls

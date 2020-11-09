@@ -17,25 +17,26 @@ buffer_t *new_buffer(int size) {
   return new;
 }
 
-int write_buffer(buffer_t *buffer, int len, char *src) {
+int write_buffer(buffer_t *buffer, char *src, int len) {
   int avail = buffer->size - buffer->filled;
   int written = avail < len ? avail : len;
   for (int i = 0; i < written; i++) {
-    buffer->buffered[(buffer->tail + i) % buffer->size] = src[i];
+    buffer->buffered[(buffer->tail + i) % buffer->size] = src[0];
+    src++; // move src forward
   }
   buffer->tail = (buffer->tail + written) % buffer->size;
   buffer->filled += written;
   return written;
 } 
 
-int read_buffer(buffer_t *buffer, int len, char *dst) {
-  int rd = buffer->filled < len ? buffer->filled : len;
-  for (int i = 0; i < rd; i++) {
+int read_buffer(buffer_t *buffer, char *dst, int len) {
+  int read = buffer->filled < len ? buffer->filled : len;
+  for (int i = 0; i < read; i++) {
     dst[i] = buffer->buffered[(buffer->head + i) % buffer->size];
   }
-  buffer->head = (buffer->head + rd) % buffer->size;
-  buffer->filled -= rd;
-  return rd;
+  buffer->head = (buffer->head + read) % buffer->size;
+  buffer->filled -= read;
+  return read;
 } 
 
 void reset_buffer(buffer_t *buffer) {
@@ -71,7 +72,7 @@ io_control_t *io_control_init(void) {
 // assume len > 0
 // this goes in syscall
 // landing buffer would be the actual buffer, if we reset it every time
-int write_tty(int tty_id, int len, char *src) {
+int write_tty(int tty_id, char *src, int len) {
   ttyio_t *out = io->out[tty_id];
   int written, total = 0;
 
@@ -80,9 +81,9 @@ int write_tty(int tty_id, int len, char *src) {
       block(out->blocked);
     } else {
       reset_buffer(out->buffer);
-      written = write_buffer(out->buffer, len, src);
+      written = write_buffer(out->buffer, src, len);
       total += written;
-      src += written;
+      //src += written; // maybe move forward in write_buffer
       out->transmitting = 1;
       TtyTransmit(tty_id, out->buffer->buffered, written);
       h_block(out->blocked); // the one which made the last write shall always be at the head of the queue, for fast wake up
@@ -104,23 +105,21 @@ int write_alert(int tty_id) {
 
 // assume len > 0
 // this goes in syscall
-int read_tty(int tty_id, int len, char *dst) {
-  int rd;
+int read_tty(int tty_id, char *dst, int len) {
+  int read;
   ttyio_t *in = io->in[tty_id];
-  while ((rd = read_buffer(in->buffer, len, dst)) == 0) {
+  while ((read = read_buffer(in->buffer, dst, len)) == 0) {
     block(in->blocked); // will be woken up in trap
   }
-  return rd;
+  return read;
 }
 
 // this goes in trap
 int receive(int tty_id) {
-  int rd = TtyReceive(tty_id, io->landing_buffer, TERMINAL_MAX_LINE); // receive in landing buffer
-  int real_rd = write_buffer(io->in[tty_id]->buffer, rd, io->landing_buffer);
+  int read = TtyReceive(tty_id, io->landing_buffer, TERMINAL_MAX_LINE); // receive in landing buffer
+  int real_rd = write_buffer(io->in[tty_id]->buffer, io->landing_buffer, read);
   if (real_rd > 0) unblock_all(io->in[tty_id]->blocked); // we got something, bois
 }
-
-
 
 // pipe
 
@@ -137,11 +136,11 @@ node_t *new_pipe(int id) {
 }
 
 // len > 0
-int write_pipe(node_t *pipe_n, int len, char *src) {
+int write_pipe(node_t *pipe_n, char *src, int len) {
   pipe_t *pipe = pipe_n->data;
   int written, len_left = len;
-  while ((written = write_buffer(pipe->buffer, len, src)) < len_left) {
-    src += written; // move to rights
+  while ((written = write_buffer(pipe->buffer, src, len)) < len_left) {
+    //src += written; // move to rights
     len_left -= written;
     block(pipe->writeblocked);
     pipe->unfulfilled--; // now I wake up and check things (fulfilled)
@@ -154,10 +153,10 @@ int write_pipe(node_t *pipe_n, int len, char *src) {
 }
 
 // assume len > 0
-int read_pipe(node_t *pipe_n, int len, char *dst) {
+int read_pipe(node_t *pipe_n, char *dst, int len) {
   pipe_t *pipe = pipe_n->data;
   int rd;
-  while ((rd = read_buffer(pipe->buffer, len, dst)) == 0) {
+  while ((rd = read_buffer(pipe->buffer, dst, len)) == 0) {
     block(pipe->readblocked); // I'm blockeds
     pipe->unfulfilled--; // now I wake up and check things (fulfilled)
   }

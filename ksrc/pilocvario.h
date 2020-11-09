@@ -8,7 +8,7 @@
 #include "linked_list.h"
 #include "scheduling.h"
 
-// buffer
+// circular buffer
 typedef struct buffer {
   int size;
   int filled;
@@ -57,9 +57,9 @@ typedef struct io_control {
 // buffer
 buffer_t *new_buffer(int size);
 
-int write_buffer(buffer_t *buffer, int len, char *src);
+int write_buffer(buffer_t *buffer, char *src, int len);
 
-int read_buffer(buffer_t *buffer, int len, char *dst);
+int read_buffer(buffer_t *buffer, char *dst, int len);
 
 void reset_buffer(buffer_t *buffer);
 
@@ -70,11 +70,11 @@ ttyio_t *new_ttyio(void);
 
 io_control_t *io_control_init(void);
 
-int write_tty(int tty_id, int len, char *src);
+int write_tty(int tty_id, char *src, int len);
 
 int write_alert(int tty_id);
 
-int read_tty(int tty_id, int len, char *dst);
+int read_tty(int tty_id, char *dst, int len);
 
 int receive(int tty_id);
 
@@ -82,9 +82,9 @@ int receive(int tty_id);
 
 node_t *new_pipe(int id);
 
-int write_pipe(node_t *pipe_n, int len, char *src);
+int write_pipe(node_t *pipe_n, char *src, int len);
 
-int read_pipe(node_t *pipe_n, int len, char *dst);
+int read_pipe(node_t *pipe_n, char *dst, int len);
 
 int destroy_pipe(node_t *pipe_n);
 

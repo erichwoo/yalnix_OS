@@ -124,6 +124,7 @@ void TrapMath(UserContext *uc);
 // use TtyReceive() hardware function to collect into buf
 void TrapTtyReceive(UserContext *uc) {
   // error checking !!!!
+  TracePrintf(1, "Trap TtyReceive...\n");
   save_uc(uc);
   int tty = uc->code;
   receive(tty);
@@ -132,6 +133,7 @@ void TrapTtyReceive(UserContext *uc) {
 // Start next transmission; resumes blocked process
 void TrapTtyTransmit(UserContext *uc) {
   // error checking !!!!
+  TracePrintf(1, "Trap TtyTransmit...\n");
   save_uc(uc);
   int tty = uc->code;
   write_alert(tty);
