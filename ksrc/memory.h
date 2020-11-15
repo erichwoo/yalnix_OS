@@ -25,6 +25,8 @@
 #define FIXED 0
 #define NONE 0
 
+#define MAX_CHECK 256 // max len of arg or string
+
 typedef struct f_frame { // tracking which frames in physical are free                                     
   int size; // available number of physical frames                                                         
   unsigned char * bit_vector; // pointer to a bit vector                                                   
@@ -63,5 +65,13 @@ void copy_user_mem(user_pt_t *origin, user_pt_t *dst);
 void destroy_usermem(user_pt_t *userpt);
 
 void destroy_kstack(kernel_stack_pt_t* kstack);
+
+int check_addr(void *addr, int prot, user_pt_t* curr_pt);
+
+int check_buffer(int len, void *addr, int prot, user_pt_t* curr_pt);
+
+int check_string(char* addr, user_pt_t* curr_pt);
+
+int check_args(char** args, user_pt_t* curr_pt);
 
 #endif //__MEMORY_H

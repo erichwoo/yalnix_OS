@@ -80,7 +80,7 @@ node_t* pop(ll_t *list) {
 
 node_t* dequeue(ll_t *list) {
   if (list->size == 0) {
-    TracePrintf(1, "Dequeueing empty list\n");
+    //TracePrintf(1, "Dequeueing empty list\n");
     return NULL;
   }
   node_t *h = list->head;

@@ -120,7 +120,9 @@ void defunct_blocked(ll_t* blocked, node_t *proc) { // for some reason if we hav
   //enqueue(procs->defunct, remove(blocked, proc));
   node_t* parent = get_parent(proc);
   if (parent != NULL) // put onto parent's defunct children queue
-    enqueue(((pcb_t*) parent->data)->d_children, procs->running);
+    enqueue(((pcb_t*) parent->data)->d_children, proc);
+  else // add to proc table's orphan list to be reaped
+    enqueue(procs->orphans, proc);
 }
 
 /*
@@ -147,20 +149,10 @@ void reap_orphans(void) { // destroy all defunct orphans; do so every so often (
   }
   */
   // remove and destroy all orphans
-  while (procs->orphans->size != 0)
+  while (!is_empty(procs->orphans))
     process_destroy(dequeue(procs->orphans));
 }
 
 
 // functionalities for wait(), fork(), exec(), exit() and rr sceduling
 
-
-
-
-
-
-// TODO: functionalities for pipe and tty I/O 
-
-
-
-// TODO: functionalities for locks and cvars
