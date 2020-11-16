@@ -20,10 +20,8 @@ buffer_t *new_buffer(int size) {
 int write_buffer(buffer_t *buffer, char *src, int len) {
   int avail = buffer->size - buffer->filled;
   int written = avail < len ? avail : len;
-  for (int i = 0; i < written; i++) {
-    buffer->buffered[(buffer->tail + i) % buffer->size] = src[0];
-    src++; // move src forward
-  }
+  for (int i = 0; i < written; i++) 
+    buffer->buffered[(buffer->tail + i) % buffer->size] = src[i];
   buffer->tail = (buffer->tail + written) % buffer->size;
   buffer->filled += written;
   return written;
@@ -48,9 +46,7 @@ void destroy_buffer(buffer_t *buffer) {
   free(buffer);
 }
 
-
 // tty io
-
 
 ttyio_t *new_ttyio(void) {
   ttyio_t *new = malloc(sizeof(ttyio_t));
@@ -83,7 +79,7 @@ int write_tty(int tty_id, char *src, int len) {
       reset_buffer(out->buffer);
       written = write_buffer(out->buffer, src, len);
       total += written;
-      //src += written; // maybe move forward in write_buffer
+      src += written; 
       out->transmitting = 1;
       TtyTransmit(tty_id, out->buffer->buffered, written);
       h_block(out->blocked); // the one which made the last write shall always be at the head of the queue, for fast wake up
@@ -93,7 +89,6 @@ int write_tty(int tty_id, char *src, int len) {
   return total;
 }
 
-
 // goes in trap, call it when write is finished
 int write_alert(int tty_id) {
   ttyio_t *out = io->out[tty_id];
@@ -101,7 +96,6 @@ int write_alert(int tty_id) {
   out->transmitting = 0;
   if (!is_empty(out->blocked)) unblock_head(out->blocked);
 }
-
 
 // assume len > 0
 // this goes in syscall
@@ -138,33 +132,41 @@ node_t *new_pipe(int id) {
 // len > 0
 int write_pipe(node_t *pipe_n, char *src, int len) {
   pipe_t *pipe = pipe_n->data;
-  int written, len_left = len;
+  int total, written = 0;
+  int len_left = len;
+  
+  // write as much as space allowed in buffer, block if need to write more
   while ((written = write_buffer(pipe->buffer, src, len)) < len_left) {
-    //src += written; // move to rights
+    src += written; // move to rights
+    total += written;
     len_left -= written;
     block(pipe->writeblocked);
     pipe->unfulfilled--; // now I wake up and check things (fulfilled)
   }
+  // done writing, so unblock readers
   if (!is_empty(pipe->readblocked)) {
     pipe->unfulfilled += get_size(pipe->readblocked); // now a process is in limbo
     unblock_all(pipe->readblocked); // now a process is in limbo
   }
-  return written;
+  return total; // should be total written, not last write's # of written
 }
 
 // assume len > 0
 int read_pipe(node_t *pipe_n, char *dst, int len) {
   pipe_t *pipe = pipe_n->data;
-  int rd;
-  while ((rd = read_buffer(pipe->buffer, dst, len)) == 0) {
+  int read;
+
+  // read at most len from buffer, block if 0 read
+  while ((read = read_buffer(pipe->buffer, dst, len)) == 0) {
     block(pipe->readblocked); // I'm blockeds
     pipe->unfulfilled--; // now I wake up and check things (fulfilled)
   }
+  // done reading, so unblock writers
   if (!is_empty(pipe->writeblocked)) {
     pipe->unfulfilled += get_size(pipe->writeblocked); // now a process is in limbo
     unblock_all(pipe->writeblocked);
   }
-  return rd;
+  return read;
 }
 
 int destroy_pipe(node_t *pipe_n) {
@@ -175,7 +177,6 @@ int destroy_pipe(node_t *pipe_n) {
   destroy_node(pipe_n);
   return 0;
 }
-
 
 /// lock
 

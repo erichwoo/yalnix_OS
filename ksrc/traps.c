@@ -94,8 +94,8 @@ void TrapClock(UserContext *uc) {
 
 // Abort current process, switch context
 void TrapIllegal(UserContext *uc);
-// Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation    
 
+// Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation
 void TrapMemory(UserContext *uc) {
   save_uc(uc);
   TracePrintf(1, "!!! 0x%x\n", uc->addr);
@@ -119,6 +119,7 @@ void TrapMemory(UserContext *uc) {
 
 // Abort
 void TrapMath(UserContext *uc);
+
 // Read input and store in buffer; set a flag that wakes up blocked process waiting for input
 // allocate kheap with buf for len (how do we know how long input line is?)
 // use TtyReceive() hardware function to collect into buf
