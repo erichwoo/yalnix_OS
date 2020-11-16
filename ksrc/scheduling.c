@@ -65,8 +65,8 @@ void unblock_head(ll_t *blocked) {
 }
 
 void unblock_all(ll_t *blocked) {
-  for (node_t *curr = blocked->head; curr != NULL; curr = curr->next) 
-    unblock(blocked, curr);
+  while (!is_empty(blocked))
+    ready(dequeue(blocked));
 }
 
 void block(ll_t* block_list) { // block current, switch to next ready
