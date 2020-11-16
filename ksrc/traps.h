@@ -32,6 +32,4 @@ void TrapTtyTransmit(UserContext *uc);
 
 void TrapDisk(UserContext *uc);
 
-void TrapTemp(UserContext *uc);
-
 #endif // __TRAPS_H

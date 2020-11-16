@@ -47,19 +47,10 @@ void trap_setup(void) {
   trap_vector[TRAP_CLOCK] = TrapClock;
   trap_vector[TRAP_TTY_RECEIVE] = TrapTtyReceive;
   trap_vector[TRAP_TTY_TRANSMIT] = TrapTtyTransmit;
-  /*
   trap_vector[TRAP_ILLEGAL] = TrapIllegal;
   trap_vector[TRAP_MEMORY] = TrapMemory;
   trap_vector[TRAP_MATH] = TrapMath;
-  
   trap_vector[TRAP_DISK] = TrapDisk;
-  */
-  // temporarily map rest of traps to TrapTemp until we handle them
-  int rest_of_traps[] = {TRAP_ILLEGAL, TRAP_MEMORY, TRAP_MATH, TRAP_DISK};
-  
-  for (int i = 0; i < 4; i++)
-    trap_vector[rest_of_traps[i]] = TrapTemp;
-  trap_vector[TRAP_MEMORY] = TrapMemory;
 
   // NULL the remaining spaces in handler table (8-15)
   for (int null_trap = TRAP_DISK + 1; null_trap < TRAP_VECTOR_SIZE; null_trap++)

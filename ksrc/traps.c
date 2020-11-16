@@ -97,7 +97,10 @@ void TrapClock(UserContext *uc) {
 }
 
 // Abort current process, switch context
-void TrapIllegal(UserContext *uc);
+void TrapIllegal(UserContext *uc) {
+  TracePrintf(0, "Process %d aborting from TrapIllegal\n", KernelGetPid());
+  KernelExit(ERROR);
+}
 
 // Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation
 void TrapMemory(UserContext *uc) {
@@ -116,13 +119,18 @@ void TrapMemory(UserContext *uc) {
     }
     userpt->stack_low = (void *) (next_vpn << PAGESHIFT);
   }
-  else 
-    helper_abort("Aborting: virtual address referenced is not within user stack low and user break\n");
+  else { 
+    TracePrintf(0, "Aborting: virtual address referenced is not within user stack low and user break\n");
+    KernelExit(ERROR);
+  }
   restore_uc(uc);
 }
 
 // Abort
-void TrapMath(UserContext *uc);
+void TrapMath(UserContext *uc) {
+  TracePrintf(0, "Process %d aborting from TrapMath\n", KernelGetPid());
+  KernelExit(ERROR);
+}
 
 // Read input and store in buffer; set a flag that wakes up blocked process waiting for input
 // allocate kheap with buf for len (how do we know how long input line is?)
@@ -145,9 +153,6 @@ void TrapTtyTransmit(UserContext *uc) {
   restore_uc(uc);
 }
 // TBD
-void TrapDisk(UserContext *uc);
-
-// temporary trap handler funct for all the unhandled traps.
-void TrapTemp(UserContext *uc) {
-  TracePrintf(1, "This trap type %d is currently unhandled\n", uc->vector);
+void TrapDisk(UserContext *uc) {
+  TracePrintf(1, "Trap Disk is unimplemented in this OS!\n");
 }
