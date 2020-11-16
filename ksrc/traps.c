@@ -20,6 +20,10 @@ void TrapKernel(UserContext *uc) {
       break;
     case YALNIX_EXEC:
       return_val = KernelExec((char*) uc->regs[0], (char**) uc->regs[1]);
+      if (return_val == SUCCESS) {
+        restore_uc(uc); // dont return if successful
+        return;
+      }
       break;
     case YALNIX_EXIT:
       KernelExit((int) uc->regs[0]);

@@ -23,10 +23,15 @@ int KernelFork(void) {
 /* Load Program with exec args and pcb_t  */
 int KernelExec (char *filename, char **argvec) {
   // !!!check parameters here, make sure is legal and readable and are actual strings and have NULL
+  user_pt_t *curr_pt = ((pcb_t*) procs->running->data)->userpt;
+  if (!check_string(filename, curr_pt) || !check_args(argvec, curr_pt)) return ERROR;
   TracePrintf(1, "Process %d Exec-ing into program %s\n", ((pcb_t*) procs->running->data)->pid, filename);
-
-  LoadProgram(filename, argvec, procs->running->data); // good to go
-  return 0; // pretend to return something, if ERROR we actually return to the calling function (if applicable)
+  int code = LoadProgram(filename, argvec, procs->running->data); // good to go
+  if (code == KILL) {
+    TracePrintf(1, "Load Program Error, killing process...");
+    KernelExit(ERROR);
+  }
+  return code; // error
 }
 
 void KernelExit (int status) {
@@ -37,12 +42,13 @@ void KernelExit (int status) {
   TracePrintf(1, "Exit status is %d\n", status);
   //check_wait(get_parent(procs->running));
   //defunct();
-  
   graveyard(); // give self to parent or orphan self, and schdeule next
 }
 
 int KernelWait (int *status_ptr) {
   // !!!check parameter here, make sure is writable
+  user_pt_t *curr_pt = ((pcb_t*) procs->running->data)->userpt;
+  if (status_ptr != NULL && !check_addr(status_ptr, PROT_WRITE, curr_pt)) return ERROR;
   TracePrintf(1, "Process %d Waiting for a child...\n", ((pcb_t*) procs->running->data)->pid);
   pcb_t *parent = procs->running->data;
   // if(is_empty(parent->children)) return ERROR;
@@ -119,6 +125,8 @@ int KernelDelay (int clock_ticks) {
 
 int KernelTtyRead (int tty_id, void *buf, int len) {
   /// !!!  check param id valid? buf?
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (tty_id >= NUM_TERMINALS || !check_buffer(len, buf, PROT_READ, curr_pt)) return ERROR;
   return read_tty(tty_id, buf, len);
 }
 
@@ -127,6 +135,8 @@ int KernelTtyRead (int tty_id, void *buf, int len) {
  */
 int KernelTtyWrite (int tty_id, void *buf, int len) {
   /// !!!  check param id valid? buf?
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (tty_id >= NUM_TERMINALS || !check_buffer(len, buf, PROT_WRITE, curr_pt)) return ERROR;
   return write_tty(tty_id, buf, len);
 }
 
@@ -135,6 +145,8 @@ int KernelTtyWrite (int tty_id, void *buf, int len) {
 
 int KernelPipeInit (int *pipe_idp) {
   /// check param !!!
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (!check_addr(pipe_idp, PROT_WRITE, curr_pt)) return ERROR;
   node_t* p = new_pipe(new_id());
   if (pipe_idp != NULL) *pipe_idp = p->code;
   return 0;
@@ -142,7 +154,9 @@ int KernelPipeInit (int *pipe_idp) {
 
 int KernelPipeRead (int pipe_id, void *buf, int len) {
   /// check param !!!
-  node_t *p = find_pipe(pipe_id); /// what if failed?
+  node_t *p = find_pipe(pipe_id);
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (p == NULL || !check_buffer(len, buf, PROT_READ, curr_pt)) return ERROR; /// what if failed?
   return read_pipe(p, buf, len);
 }
 
@@ -153,6 +167,8 @@ int KernelPipeRead (int pipe_id, void *buf, int len) {
 int KernelPipeWrite (int pipe_id, void *buf, int len) {
   /// check param !!!
   node_t *p = find_pipe(pipe_id); /// what if failed?
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (p == NULL || !check_buffer(len, buf, PROT_WRITE, curr_pt)) return ERROR;
   return write_pipe(p, buf, len);
 }
 
@@ -160,6 +176,8 @@ int KernelPipeWrite (int pipe_id, void *buf, int len) {
 
 int KernelLockInit (int *lock_idp) {
   /// check param !!!
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (!check_addr(lock_idp, PROT_WRITE, curr_pt)) return ERROR;
   node_t* l = new_lock(new_id());
   if (lock_idp != NULL) *lock_idp = l->code;
   return 0;
@@ -168,6 +186,7 @@ int KernelLockInit (int *lock_idp) {
 int KernelAcquire (int lock_id) {
    /// check param !!!
   node_t* l = find_lock(lock_id);
+  if (l == NULL) return ERROR;
   acquire(l);
   return 0;
 }
@@ -175,12 +194,15 @@ int KernelAcquire (int lock_id) {
 int KernelRelease (int lock_id) {
    /// check param !!!
   node_t* l = find_lock(lock_id);
+  if (l == NULL) return ERROR;
   release(l);
   return 0;
 }
 
 int KernelCvarInit (int *cvar_idp) {
   /// check param !!!
+  user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
+  if (!check_addr(cvar_idp, PROT_WRITE, curr_pt)) return ERROR;
   node_t* c = new_cvar(new_id());
   if (cvar_idp != NULL) *cvar_idp = c->code;
   return 0;
@@ -189,6 +211,7 @@ int KernelCvarInit (int *cvar_idp) {
 int KernelCvarWait (int cvar_id, int lock_id) {
   /// check param !!!
   node_t *l = find_lock(lock_id), *c = find_cvar(cvar_id);
+  if (l == NULL || c == NULL) return ERROR;
   wait_cvar(c, l);
   return 0;
 }
@@ -196,6 +219,7 @@ int KernelCvarWait (int cvar_id, int lock_id) {
 int KernelCvarSignal (int cvar_id) {
   /// check param !!!
   node_t* c = find_cvar(cvar_id);
+  if (c == NULL) return ERROR;
   signal_cvar(c);
   return 0;
 }
@@ -203,6 +227,7 @@ int KernelCvarSignal (int cvar_id) {
 /* Signal all the processes on cond_var queue */
 int KernelCvarBroadcast (int cvar_id) {
   node_t* c = find_cvar(cvar_id);
+  if (c == NULL) return ERROR;
   broadcast(c);
   return 0;
 }

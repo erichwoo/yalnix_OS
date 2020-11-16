@@ -132,8 +132,36 @@ void destroy_kstack(kernel_stack_pt_t* kstack) { // don't do this in the same pr
   }
 }
 
-int check_buffer(void);
+int check_addr(void *addr, int prot, user_pt_t* curr_pt) {
+  if ((unsigned int) addr < VMEM_1_BASE || (unsigned int) addr >= VMEM_1_LIMIT) return 0; // dont touch kernel!
+  pte_t p = curr_pt->pt[((unsigned int)addr >> PAGESHIFT) - BASE_PAGE_1];
+  if (!p.valid) return 0; // must be valid
+  if ((p.prot == PROT_READ|PROT_WRITE) || (p.prot == PROT_ALL)) return 1;
+  if (prot == PROT_READ) {
+    return (p.prot == PROT_READ);
+  } else {
+    return (p.prot == PROT_WRITE);
+  }
+}
 
-int check_string(void);
+int check_buffer(int len, void *addr, int prot, user_pt_t* curr_pt) {
+  for (int i = 0; i < len; i++) if (!check_addr((char * ) addr + i, prot, curr_pt)) return 0;
+  return 1;
+}
 
-int check_args(void);
+int check_string(char* addr, user_pt_t* curr_pt) {
+  for (int i = 0; i < MAX_CHECK; i++) {
+    if (!check_addr(addr + i, PROT_READ, curr_pt)) return 0;
+    if (*(addr + i) == '\0') return 1; // check complete
+  }
+  return 0; // exceeded max len
+}
+
+int check_args(char** args, user_pt_t* curr_pt) {
+  for (int i = 0; i < MAX_CHECK; i++) {
+    if (!check_addr(args + i, PROT_READ, curr_pt)) return 0; // fisrt check if char* is stored at a good location
+    if (*(args + i) == NULL) return 1; // check complete
+    if (!check_string(*(args + i), curr_pt)) return 0; // then check the string char* points to
+  }
+  return 0;
+}
