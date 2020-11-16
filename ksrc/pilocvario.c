@@ -193,7 +193,6 @@ node_t *new_lock(int id) {
 
 void acquire(node_t *lock_n) {
   lock_t *lock = lock_n->data;
-  TracePrintf(1, "try to acquire: %d\n", get_pid(procs->running));
   while (!(lock->owner == NULL || lock->owner == procs->running)) {
     block(lock->blocked); // mesa style
     lock->unfulfilled--; // now I wake up and check things (fulfilled)
@@ -246,7 +245,6 @@ void wait_cvar(node_t *cvar_n, node_t *lock_n) {
   release(lock_n);
   lock->cvar++; // I want to use this later, don't destroy yet
   block(cvar->blocked);
-  TracePrintf(1, "I woke: %d\n", get_pid(procs->running));
   acquire(lock_n); // hopefully still there
   lock->cvar--; // no more cvar waiting on it
 }
