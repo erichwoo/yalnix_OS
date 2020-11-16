@@ -155,35 +155,35 @@ int main(int argc, char* argv[]) {
     // Child
     if (pid == 0) {
       char* s1 = "child_write";
-      TracePrintf(1, "I am Child, I will write 'child_write' to Pipe now, then delay\n");
+      TtyPrintf(0, "I am Child, I will write 'child_write' to Pipe now, then delay\n");
       PipeWrite(pipe_id, s1, 12);
       Delay(1);
 
       char s2[5] = "";
-      TracePrintf(1, "Child will now read 5 bytes from Pipe\n");
+      TtyPrintf(0, "Child will now read 5 bytes from Pipe\n");
       PipeRead(pipe_id, s2, 5);
-      TracePrintf(1, "Child got '%s'\n", s2);
+      TtyPrintf(0, "Child got '%s'\n", s2);
 
-      TracePrintf(1, "Child Exiting\n");
+      TtyPrintf(0, "Child Exiting\n");
       Exit(0);
     }
     // Parent
     char s1[100] = "";
-    TracePrintf(1, "I am Parent, I will read 100 bytes from Pipe now, waiting for someone to write\n");
+    TtyPrintf(0, "I am Parent, I will read 100 bytes from Pipe now, waiting for someone to write\n");
     PipeRead(pipe_id, s1, 100);
-    TracePrintf(1, "Parent got '%s'\n", s1);
+    TtyPrintf(1, "Parent got '%s'\n", s1);
 
     char* s2 = "longer_string";
-    TracePrintf(1, "Parent will write 'longer_string' to Pipe now, then delay\n");
+    TtyPrintf(0, "Parent will write 'longer_string' to Pipe now, then delay\n");
     PipeWrite(pipe_id, s2, 14);
     Delay(1);
 
     char s3[100] = "";
-    TracePrintf(1, "Parent reading remaining bytes from Pipe\n");
+    TtyPrintf(0, "Parent reading remaining bytes from Pipe\n");
     PipeRead(pipe_id, s3, 100);
-    TracePrintf(1, "Parent got '%s'\n", s3);
+    TtyPrintf(0, "Parent got '%s'\n", s3);
     
-    TracePrintf(1, "Parent exiting\n");
+    TtyPrintf(0, "Parent exiting\n");
 
     Wait(NULL);
     Exit(0);
@@ -243,12 +243,13 @@ int main(int argc, char* argv[]) {
     char read[100] = "";
     int num;
 
-    TtyPrintf(0, "\nParent delaying, then will try to acquire lock and do work\n");
-    Delay(5);
-    Acquire(lock_id);
-    TtyPrintf(0, "\nParent acquired lock");
-
+    // do 3 writes
     for (int i = 1; i < 4; i++) {
+      // Acquire
+      TtyPrintf(0, "\nParent delaying, then will try to acquire lock and do work\n");
+      Delay(10);
+      Acquire(lock_id);
+      TtyPrintf(0, "\nParent acquired lock");
       TtyPrintf(0, "\nParent trying to write Phrase %d\n", i);
 
       // wait for pipe to be empty, so wait while pipe NOT empty
@@ -258,28 +259,28 @@ int main(int argc, char* argv[]) {
 	CvarWait(want_empty, lock_id);
 	TtyPrintf(0, "\nParent was signaled to unblock/reacquire lock\n");
       }
-      TtyPrintf(0, "Parent passed condition check. Now writing Phrase %d to pipe", i);
-      if (i == 1)
-	TtyPrintf(0, ", then BROADCASTING children\n");
-      else
-	TtyPrintf(0, ", then SIGNALING children\n");
+      TtyPrintf(0, "Parent passed condition check. Now writing Phrase %d to pipe, ", i);
       
       // write the next phrase to pipe, then broadcast/signal
       if (i == 1) {
+	TtyPrintf(0, "then BROADCASTING children\n");
 	PipeWrite(pipe_id, write1, 17);
 	CvarBroadcast(want_filled); // test Broadcast on first write, signal on others
       }
       else {
+	TtyPrintf(0, "then SIGNALING children\n");
 	if (i == 2)
 	  PipeWrite(pipe_id, write2, 17);
 	else if (i == 3)
 	  PipeWrite(pipe_id, write3, 17);
 	CvarSignal(want_filled);
       }
+
+      // RELEASE
+      TtyPrintf(0, "Parent done doing CRITICAL WORK for now. Releasing lock and delaying until my next write\n");
+      Release(lock_id);
     }
 
-    TtyPrintf(0, "Parent done doing CRITICAL WORK. Releasing lock\n");
-    Release(lock_id);
 
     // wait for all children before exiting
     for (int i = 0; i < 3; i++)
