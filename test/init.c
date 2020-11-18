@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
     PipeInit(&pipe_id);
 
     // testing with CVAR is a little janky bc PipeRead == 0 will block
-    // so checking if pipe is empty/filled requires writing chars
+    // so checking if pipe is empty/filled requires writing filler chars
     // and checking if those chars are the ONLY chars in pipe
     TtyPrintf(0, "Pipe will be the SHARED critical data\n");
     
@@ -246,8 +246,8 @@ int main(int argc, char* argv[]) {
     // do 3 writes
     for (int i = 1; i < 4; i++) {
       // Acquire
-      TtyPrintf(0, "\nParent delaying, then will try to acquire lock and do work\n");
-      Delay(10);
+      TtyPrintf(0, "Parent delaying, then will try to acquire lock and do work\n");
+      Delay(7);
       Acquire(lock_id);
       TtyPrintf(0, "\nParent acquired lock");
       TtyPrintf(0, "\nParent trying to write Phrase %d\n", i);
