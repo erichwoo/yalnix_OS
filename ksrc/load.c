@@ -182,6 +182,9 @@ LoadProgram(char *name, char *args[], pcb_t *proc)
    * ==>> (See the LoadProgram diagram in the manual.)
    */
 
+  if (li.t_npg + data_npg + stack_npg > frames_left()) return KILL;
+  proc->userpt->size = li.t_npg + data_npg + stack_npg;
+
   /*
    * ==>> First, text. Allocate "li.t_npg" physical pages and map them starting at
    * ==>> the "text_pg1" page in region 1 address space.

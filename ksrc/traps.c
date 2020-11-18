@@ -107,14 +107,19 @@ void TrapMemory(UserContext *uc) {
   save_uc(uc);
   TracePrintf(1, "TrapMemory at 0x%x\n", uc->addr);
   user_pt_t *userpt = ((pcb_t *)procs->running->data)->userpt;
-  if (uc->addr >= UP_TO_PAGE(userpt->brk) + PAGESIZE && (unsigned int) uc->addr <= DOWN_TO_PAGE(userpt->stack_low)) {
+  if ((unsigned int) uc->addr >= UP_TO_PAGE(userpt->brk) + PAGESIZE && (unsigned int) uc->addr <= DOWN_TO_PAGE(userpt->stack_low)) {
     TracePrintf(1, "Expanding User Stack...\n");
     int curr_vpn = DOWN_TO_PAGE(userpt->stack_low) >> PAGESHIFT;
     int next_vpn = DOWN_TO_PAGE(uc->addr) >> PAGESHIFT;
+    if (curr_vpn - next_vpn > frames_left()) {
+      TracePrintf(0, "Not enough free frames, aborting\n");
+      KernelExit(ERROR);
+    }
     for (int vpn = curr_vpn - 1; vpn >= next_vpn; vpn--) {
       set_pte(&userpt->pt[vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
       WriteRegister(REG_TLB_FLUSH, vpn << PAGESHIFT);
     }
+    userpt->size += curr_vpn - next_vpn;
     userpt->stack_low = (void *) (next_vpn << PAGESHIFT);
   }
   else { 

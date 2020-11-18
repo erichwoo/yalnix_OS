@@ -38,7 +38,8 @@ typedef struct user_pt { // userland page table
   void *data_end; // end of data                                                     
   void *brk; // brk                                                  
   void *stack_low; // top of the user stack                                                                
-  pte_t pt[NUM_PAGES_1]; // actual entries                                                                 
+  pte_t pt[NUM_PAGES_1]; // actual entries  
+  int size; // num physical pages                                                               
 } user_pt_t;
 
 typedef struct kernel_stack_pt { // kernel stack page_table
@@ -74,6 +75,8 @@ int check_string(char* addr, user_pt_t* curr_pt);
 
 int check_args(char** args, user_pt_t* curr_pt);
 
-int no_kernel_memory(void);
+int no_kernel_memory(int left);
+
+int frames_left(void);
 
 #endif //__MEMORY_H

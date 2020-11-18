@@ -19,7 +19,6 @@ node_t *get_parent(node_t *proc) {
 node_t *process_init(void) {
   pcb_t *new_pcb = malloc(sizeof(pcb_t));
   new_pcb->parent = NULL;
-  //new_pcb->children = new_ll();
   new_pcb->a_children = new_ll();
   new_pcb->d_children = new_ll();
   new_pcb->userpt = new_user_pt();

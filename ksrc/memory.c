@@ -65,7 +65,7 @@ void set_pte(pte_t *pte, int valid, int pfn, int prot) {
 }
 
 int SetKernelBrk(void *addr) {
-  if ((unsigned int) addr >= DOWN_TO_PAGE(KERNEL_STACK_BASE) ||
+  if ((unsigned int) addr >= DOWN_TO_PAGE(KERNEL_STACK_BASE) - PAGESIZE ||
     (unsigned int) addr < UP_TO_PAGE(_kernel_data_end)) return ERROR;
 
   if (ReadRegister(REG_VM_ENABLE)) {
@@ -93,6 +93,7 @@ user_pt_t *new_user_pt(void) {
   for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
     set_pte(&new->pt[vpn - BASE_PAGE_1], 0, NONE, NONE);
   }
+  new->size = 0;
   return new;
 }
 
@@ -166,6 +167,10 @@ int check_args(char** args, user_pt_t* curr_pt) {
   return 0;
 }
 
-int no_kernel_memory(void) {
-  return (free_frame.filled >= free_frame.size || kernel_pt.brk >= DOWN_TO_PAGE(KERNEL_STACK_BASE))
+int no_kernel_memory(int left) {
+  return (frames_left() < left || (unsigned int) kernel_pt.brk >= DOWN_TO_PAGE(KERNEL_STACK_BASE) - PAGESIZE);
+}
+
+int frames_left(void) { 
+  return free_frame.size - free_frame.filled;
 }
