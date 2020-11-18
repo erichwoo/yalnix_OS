@@ -74,4 +74,6 @@ int check_string(char* addr, user_pt_t* curr_pt);
 
 int check_args(char** args, user_pt_t* curr_pt);
 
+int no_kernel_memory(void);
+
 #endif //__MEMORY_H

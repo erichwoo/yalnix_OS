@@ -105,14 +105,12 @@ void TrapIllegal(UserContext *uc) {
 // Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation
 void TrapMemory(UserContext *uc) {
   save_uc(uc);
-  TracePrintf(1, "!!! 0x%x\n", uc->addr);
-  TracePrintf(1, "sp 0x%x\n", uc->sp);
+  TracePrintf(1, "TrapMemory at 0x%x\n", uc->addr);
   user_pt_t *userpt = ((pcb_t *)procs->running->data)->userpt;
-  if (uc->addr >= uc->sp && (unsigned int) uc->addr < VMEM_1_LIMIT) {
+  if (uc->addr >= UP_TO_PAGE(userpt->brk) + PAGESIZE && (unsigned int) uc->addr <= DOWN_TO_PAGE(userpt->stack_low)) {
     TracePrintf(1, "Expanding User Stack...\n");
     int curr_vpn = DOWN_TO_PAGE(userpt->stack_low) >> PAGESHIFT;
-    int next_vpn = DOWN_TO_PAGE(uc->sp) >> PAGESHIFT;
-    TracePrintf(1, "slow 0x%x\n", userpt->stack_low);
+    int next_vpn = DOWN_TO_PAGE(uc->addr) >> PAGESHIFT;
     for (int vpn = curr_vpn - 1; vpn >= next_vpn; vpn--) {
       set_pte(&userpt->pt[vpn - BASE_PAGE_1], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
       WriteRegister(REG_TLB_FLUSH, vpn << PAGESHIFT);

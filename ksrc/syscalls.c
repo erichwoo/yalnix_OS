@@ -10,6 +10,7 @@ extern proc_table_t *procs;
 extern node_t *init_node, *idle_node;
 
 int KernelFork(void) {
+  if no_kernel_memory() return ERROR;
   TracePrintf(1, "Process %d Fork-ing\n", ((pcb_t*) procs->running->data)->pid);
   node_t *parent = procs->running;
   node_t *child_node = process_copy(parent);
@@ -82,7 +83,7 @@ int KernelUserBrk (void *addr) {
   user_pt_t *userpt = ((pcb_t *) procs->running->data)->userpt;
   // check if has enough memory
 
-  if ((unsigned int) addr >= DOWN_TO_PAGE(userpt->stack_low) ||
+  if ((unsigned int) addr >= DOWN_TO_PAGE(userpt->stack_low) - PAGESIZE ||
     (unsigned int) addr < UP_TO_PAGE(userpt->data_end)) return ERROR;
 
   unsigned int curr_brk_vpn = (UP_TO_PAGE(userpt->brk) >> PAGESHIFT) - 1; // greatest vpn in use
@@ -145,6 +146,7 @@ int KernelTtyWrite (int tty_id, void *buf, int len) {
 
 int KernelPipeInit (int *pipe_idp) {
   /// check param !!!
+  if no_kernel_memory() return ERROR;
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (!check_addr(pipe_idp, PROT_WRITE, curr_pt)) return ERROR;
   node_t* p = new_pipe(new_id());
@@ -176,6 +178,7 @@ int KernelPipeWrite (int pipe_id, void *buf, int len) {
 
 int KernelLockInit (int *lock_idp) {
   /// check param !!!
+  if no_kernel_memory() return ERROR;
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (!check_addr(lock_idp, PROT_WRITE, curr_pt)) return ERROR;
   node_t* l = new_lock(new_id());
@@ -201,6 +204,7 @@ int KernelRelease (int lock_id) {
 
 int KernelCvarInit (int *cvar_idp) {
   /// check param !!!
+  if no_kernel_memory() return ERROR;
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (!check_addr(cvar_idp, PROT_WRITE, curr_pt)) return ERROR;
   node_t* c = new_cvar(new_id());

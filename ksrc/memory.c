@@ -165,3 +165,7 @@ int check_args(char** args, user_pt_t* curr_pt) {
   }
   return 0;
 }
+
+int no_kernel_memory(void) {
+  return (free_frame.filled >= free_frame.size || kernel_pt.brk >= DOWN_TO_PAGE(KERNEL_STACK_BASE))
+}
