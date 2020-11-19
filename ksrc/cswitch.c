@@ -31,8 +31,6 @@ void add_return_val(int r) {
 }
 
 void switch_proc(node_t *from, node_t *to) {
-    WriteRegister(REG_PTBR1, (unsigned int) ((pcb_t *)to->data)->userpt->pt);
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
     KernelContextSwitch(KCSwitch, from->data, to->data);
 }
 
@@ -50,6 +48,8 @@ KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p
         kernel_pt.pt[vpn - BASE_PAGE_0] = next_pcb->kstack->pt[vpn - BASE_PAGE_KSTACK];
     }
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_KSTACK);
+    WriteRegister(REG_PTBR1, (unsigned int) next_pcb->userpt->pt);
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
     return &next_pcb->kc; // teleport to next
 }
 
@@ -63,10 +63,12 @@ KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used) {
     int dummy = BASE_PAGE_KSTACK - 1;
     for (int vpn = BASE_PAGE_KSTACK; vpn < LIM_PAGE_KSTACK; vpn++) {
         set_pte(&kernel_pt.pt[dummy - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
-        memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE);
         WriteRegister(REG_TLB_FLUSH, dummy << PAGESHIFT); // must flush after use!
+        memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE);
+        
         new_pcb->kstack->pt[vpn - BASE_PAGE_KSTACK] = kernel_pt.pt[dummy - BASE_PAGE_0];
     }
     set_pte(&kernel_pt.pt[dummy - BASE_PAGE_0], 0, NONE, NONE);
+    WriteRegister(REG_TLB_FLUSH, dummy << PAGESHIFT);
     return kc_in; // go back
 }

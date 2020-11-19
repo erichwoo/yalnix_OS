@@ -31,7 +31,8 @@ node_t *process_init(void) {
 node_t *process_copy(node_t* parent) {
   node_t *child_node = process_init();
   pcb_t *child = child_node->data, *parent_pcb = parent->data;
-  enqueue(parent_pcb->a_children, child_node);
+  node_t *child_copy = new_node((void *) child);
+  enqueue(parent_pcb->a_children, child_copy);
   child->parent = parent;
   child->uc = parent_pcb->uc;
   copy_user_mem(parent_pcb->userpt, child->userpt);
@@ -44,15 +45,16 @@ void process_terminate(node_t *proc, int rc) { // return code
   // zero/NULL variables so any future errant access is safe
   proc->code = rc;
   pcb_t *p = proc->data;
+  helper_retire_pid(p->pid);
   destroy_usermem(p->userpt);
-  /*for (node_t *curr = p->children->head; curr != NULL; curr = curr->next) {// orphane children
-    ((pcb_t *) curr->data)->parent = NULL;
-  }
-  free(p->children);
-  */  
   // orphan alive children
-  for (node_t *curr = p->a_children->head; curr != NULL; curr = curr->next) 
+  node_t *last;
+  for (node_t *curr = p->a_children->head; curr != NULL; curr = curr->next) {
     ((pcb_t *) curr->data)->parent = NULL;
+    free(last);
+    last = curr;
+  }
+  free(last);
   free(p->a_children);
   p->a_children = NULL;
   // destroy defunct children
@@ -65,8 +67,6 @@ void process_terminate(node_t *proc, int rc) { // return code
 // free the node and all associated memory (free cached kernel also); must in a DIFFERENT process
 void process_destroy(node_t *proc) {
   pcb_t *p = proc->data;
-  helper_retire_pid(p->pid);
-  p->pid = -1;
   destroy_kstack(p->kstack);
   free(p->kstack);
   free(p->userpt);

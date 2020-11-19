@@ -104,13 +104,14 @@ void copy_user_mem(user_pt_t *origin, user_pt_t *dst) {
       if (origin->pt[vpn-BASE_PAGE_1].valid) {
         int privilege = origin->pt[vpn-BASE_PAGE_1].prot;
         set_pte(&kernel_pt.pt[dummy - BASE_PAGE_0], 1, get_frame(NONE, AUTO), PROT_READ|PROT_WRITE);
-        memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE);
         WriteRegister(REG_TLB_FLUSH, dummy << PAGESHIFT);
+        memcpy((void*) (dummy << PAGESHIFT), (void*) (vpn << PAGESHIFT), PAGESIZE);
         dst->pt[vpn - BASE_PAGE_1] = kernel_pt.pt[dummy - BASE_PAGE_0];
         dst->pt[vpn - BASE_PAGE_1].prot = privilege;
       }
   }
   set_pte(&kernel_pt.pt[dummy - BASE_PAGE_0], 0, NONE, NONE);
+  WriteRegister(REG_TLB_FLUSH, dummy << PAGESHIFT);
   dst->brk = origin->brk;
   dst->data_end = origin->data_end;
   dst->stack_low = origin->stack_low;
@@ -122,7 +123,7 @@ void destroy_usermem(user_pt_t *userpt) {
     if (userpt->pt[vpn-BASE_PAGE_1].valid) {
       set_pte(&userpt->pt[vpn - BASE_PAGE_1], 0, vacate_frame(userpt->pt[vpn - BASE_PAGE_1].pfn), NONE);
     }
-  }
+  } 
 }
 
 void destroy_kstack(kernel_stack_pt_t* kstack) { // don't do this in the same process!

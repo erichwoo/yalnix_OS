@@ -11,7 +11,10 @@ extern node_t *init_node, *idle_node;
 
 int KernelFork(void) {
   user_pt_t *curr_pt = ((pcb_t*) procs->running->data)->userpt;
-  if (no_kernel_memory(curr_pt->size + 3)) return ERROR;
+  if (no_kernel_memory(curr_pt->size + 3)) {
+    TracePrintf(1, "no memory left for forking\n");
+    return ERROR;
+  } 
   TracePrintf(1, "Process %d Fork-ing\n", ((pcb_t*) procs->running->data)->pid);
   node_t *parent = procs->running;
   node_t *child_node = process_copy(parent);

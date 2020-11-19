@@ -92,7 +92,11 @@ void init_load(char *name, char *args[], UserContext *uctxt) {
   }
 
   WriteRegister(REG_PTBR1, (unsigned int) init_pcb->userpt->pt); // 
-  LoadProgram(name, args, init_pcb); 
+  int code = LoadProgram(name, args, init_pcb); 
+  if (code != SUCCESS) {
+    TracePrintf(0, "can't open init\n");
+    Halt();
+  }
   procs->running = init_node; // set manually
 } 
 
