@@ -20,7 +20,6 @@ void ready(node_t *proc) {
   enqueue(procs->ready, proc);
 }
 
-// further suppose before executing this function, the running process is the one we are switching from
 void run_next(node_t *next) { 
   TracePrintf(1, "next id: %d\n", get_pid(next));
   node_t *curr = procs->running;
@@ -28,28 +27,25 @@ void run_next(node_t *next) {
   switch_proc(curr, next);
 }
 
-
 void run_next_ready(void) {
   node_t *next;
   if (is_empty(procs->ready)) next = idle_node;
   else next = dequeue(procs->ready);
   run_next(next);
-}// run the head of the ready queue take care of idle; suppose we have node called idle_node; contains actual switching
+}
 
-
-// preempt the running process with next; idle is never put in the ready queue
 void preempt(node_t* next) {
   if (procs->running != idle_node) ready(procs->running);
   run_next(next);
 }
 
-void rr_preempt(void) { // ready the current process and run the head of the ready queue
+void rr_preempt(void) {
   if (is_empty(procs->ready)) return;
   if (procs->running != idle_node) ready(procs->running);
   run_next_ready();
 }
 
-void unblock(ll_t* blocked, node_t *proc) { // remove proc from block and move to ready queue
+void unblock(ll_t* blocked, node_t *proc) {
   if (is_empty(blocked)) return; // safety
   ready(remove(blocked, proc));
 }
@@ -63,13 +59,12 @@ void unblock_all(ll_t *blocked) {
     ready(dequeue(blocked));
 }
 
-void block(ll_t* block_list) { // block current, switch to next ready
+void block(ll_t* block_list) { 
   enqueue(block_list, procs->running);
-  //TracePrintf(1, "my size %d\n", procs->delayed->size);
   run_next_ready();
 }
 
-void h_block(ll_t* block_list) { // block current, but put to head, switch to next ready
+void h_block(ll_t* block_list) {
   insert_head(block_list, procs->running);
   run_next_ready();
 }
@@ -78,7 +73,7 @@ void block_wait(void) {
   block(procs->waiting);
 }
 
-void check_wait(node_t* parent) { // when a child dies check this
+void check_wait(node_t* parent) {
   node_t *curr;
   if (has_member(procs->waiting, parent)) unblock(procs->waiting, parent);
 }
@@ -95,9 +90,7 @@ void check_delay(void) {
   }
 }
 
-// moves to parent's defunct list if proc has parent
-// moves to proctable's orphan list if proc doesn't
-void graveyard(void) { // move running to graveyard; run next; before doing so the process should be terminated
+void graveyard(void) { 
   //enqueue(procs->defunct, procs->running); // even if is an orphan, must move to graveyard before destroying it externally
   node_t* parent = get_parent(procs->running);
   if (parent != NULL) { // put onto parent's defunct children queue
@@ -112,9 +105,13 @@ void graveyard(void) { // move running to graveyard; run next; before doing so t
 
 void defunct_blocked(ll_t* blocked, node_t *proc) { // for some reason if we have to kill a blocked process
   //enqueue(procs->defunct, remove(blocked, proc));
+  remove(blocked, proc);
   node_t* parent = get_parent(proc);
-  if (parent != NULL) // put onto parent's defunct children queue
+  if (parent != NULL) {// put onto parent's defunct children queue
     enqueue(((pcb_t*) parent->data)->d_children, proc);
+    check_wait(parent);
+    parent = NULL;
+  }
   else // add to proc table's orphan list to be reaped
     enqueue(procs->orphans, proc);
 }
@@ -146,7 +143,3 @@ void reap_orphans(void) { // destroy all defunct orphans; do so every so often (
   while (!is_empty(procs->orphans))
     process_destroy(dequeue(procs->orphans));
 }
-
-
-// functionalities for wait(), fork(), exec(), exit() and rr sceduling
-
