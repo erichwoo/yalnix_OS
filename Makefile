@@ -15,7 +15,7 @@ K_INCS = memory.h process.h syscalls.h misc.h linked_list.h scheduling.h traps.h
 U_SRC_DIR = ./test
 
 # What are the user c and include files?
-U_SRCS = init.c 
+U_SRCS = init.c console.c shell.c myinit.c
 U_INCS = 
 
 
