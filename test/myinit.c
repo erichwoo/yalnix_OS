@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
     if (cid2 == 0) {
       TracePrintf(1, "I am child 2 and my pid is %d\n", GetPid());
       TracePrintf(1, "I will Exec with args: 'test/init 0', which should Exit with status = 5\n");
-      char* args[2] = {"test/init", "0"};
+      char* args[2] = {"test/myinit", "0"};
       Exec(args[0], args);
       TracePrintf(1, "If you get here, Exec'd child errrored!\n");
       Exit(-1);
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
     char s1[100] = "";
     TtyPrintf(0, "I am Parent, I will read 100 bytes from Pipe now, waiting for someone to write\n");
     PipeRead(pipe_id, s1, 100);
-    TtyPrintf(1, "Parent got '%s'\n", s1);
+    TtyPrintf(0, "Parent got '%s'\n", s1);
 
     char* s2 = "longer_string";
     TtyPrintf(0, "Parent will write 'longer_string' to Pipe now, then delay\n");

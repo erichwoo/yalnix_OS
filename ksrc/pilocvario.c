@@ -197,6 +197,7 @@ void acquire(node_t *lock_n) {
     block(lock->blocked); // mesa style
     lock->unfulfilled--; // now I wake up and check things (fulfilled)
   }
+  lock->owner = procs->running;
 }
 
 int release(node_t *lock_n) {
