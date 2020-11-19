@@ -48,7 +48,7 @@ void process_terminate(node_t *proc, int rc) { // return code
   helper_retire_pid(p->pid);
   destroy_usermem(p->userpt);
   // orphan alive children
-  node_t *last;
+  node_t *last = NULL;
   for (node_t *curr = p->a_children->head; curr != NULL; curr = curr->next) {
     ((pcb_t *) curr->data)->parent = NULL;
     free(last);
