@@ -1,15 +1,10 @@
 /* Erich Woo & Boxian Wang
  * 31 October 2020
- * Trap functionality
+ * Trap functionality. Read trap.h for detailed documentation
  */
 
 #include "traps.h"
 
-//////////////// Traps
-
-extern proc_table_t *procs;
-
-// ALWAYS COPY THE CURRENT UC TO uc BEFORE RETURNING!
 void TrapKernel(UserContext *uc) {
   save_uc(uc);
   TracePrintf(1, "The code of syscall is 0x%x\n", uc->code);
@@ -86,23 +81,18 @@ void TrapKernel(UserContext *uc) {
   restore_uc(uc);
 }
 
-// Check the process table to decide which process to schedule; initialize a context switch if necessary                                  
 void TrapClock(UserContext *uc) {
   save_uc(uc);
-  //TracePrintf(1, "Clock Trap occured!\n");
-  // recycle stack frame here?
   check_delay();
   rr_preempt();
   restore_uc(uc);
 }
 
-// Abort current process, switch context
 void TrapIllegal(UserContext *uc) {
   TracePrintf(0, "Process %d aborting from TrapIllegal\n", KernelGetPid());
   KernelExit(ERROR);
 }
 
-// Check the page table; if illegal access, abort; otherwise, modify page table to reflect memory allocation
 void TrapMemory(UserContext *uc) {
   save_uc(uc);
   TracePrintf(1, "TrapMemory at 0x%x\n", uc->addr);
@@ -129,33 +119,27 @@ void TrapMemory(UserContext *uc) {
   restore_uc(uc);
 }
 
-// Abort
 void TrapMath(UserContext *uc) {
   TracePrintf(0, "Process %d aborting from TrapMath\n", KernelGetPid());
   KernelExit(ERROR);
 }
 
-// Read input and store in buffer; set a flag that wakes up blocked process waiting for input
-// allocate kheap with buf for len (how do we know how long input line is?)
-// use TtyReceive() hardware function to collect into buf
 void TrapTtyReceive(UserContext *uc) {
-  // error checking !!!!
   TracePrintf(1, "Trap TtyReceive...\n");
   save_uc(uc);
   int tty = uc->code;
   receive(tty);
   restore_uc(uc);
 }
-// Start next transmission; resumes blocked process
+
 void TrapTtyTransmit(UserContext *uc) {
-  // error checking !!!!
   TracePrintf(1, "Trap TtyTransmit...\n");
   save_uc(uc);
   int tty = uc->code;
   write_alert(tty);
   restore_uc(uc);
 }
-// TBD
+
 void TrapDisk(UserContext *uc) {
   TracePrintf(1, "Trap Disk is unimplemented in this OS!\n");
 }

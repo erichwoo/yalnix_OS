@@ -5,10 +5,6 @@
 
 #include "syscalls.h"
 
-/////////////// Basic Process Coordination
-extern proc_table_t *procs;
-extern node_t *init_node, *idle_node;
-
 int KernelFork(void) {
   user_pt_t *curr_pt = ((pcb_t*) procs->running->data)->userpt;
   if (no_kernel_memory(curr_pt->size + 3)) {

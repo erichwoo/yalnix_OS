@@ -7,7 +7,6 @@
 #include "misc.h"
 #include "pilocvario.h"
 
-
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs
 proc_table_t *procs;
 free_frame_t free_frame;

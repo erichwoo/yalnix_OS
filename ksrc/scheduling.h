@@ -11,14 +11,26 @@
 #include "linked_list.h"
 #include "misc.h"
 
+// typedefs the top-level process table "manager"
 typedef struct proc_table {
-  node_t *running;
-  ll_t *ready;
-  ll_t *waiting;
-  ll_t *delayed;
-  ll_t *orphans;
+  node_t *running;  // the current running process (as node)
+  ll_t *ready;      // a linked-list queue of ready process nodes
+  ll_t *waiting;    // a linked-list of 
+  ll_t *delayed;    // a linked-list of delaying process nodes (via Delay syscall)
+  ll_t *orphans;    // a linked-list of back-logged orphans to destroy periodically
 } proc_table_t;
 
+// THE process table
+extern proc_table_t *procs;
+
+// 
+extern node_t *init_node, *idle_node;
+extern int pilocvar_id;
+
+/**************************** FUNCTION DECLARATIONS ***************************/
+
+/* Init
+ */
 proc_table_t *proc_table_init(void);
 
 void ready(node_t *proc);

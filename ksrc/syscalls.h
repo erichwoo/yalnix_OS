@@ -14,8 +14,18 @@
 #include "pilocvario.h"
 #include "misc.h"
 
+// to access the current proc and proccess table
+extern proc_table_t *procs;
+
+extern node_t *init_node, *idle_node;
+
+/****************************** FUNCTION DECLARATIONS *******************************/
+// All functions are invoked by TrapKernel
+
 /////////////// Basic Process Coordination
 
+/* Forks a new process as a copy of the current process/parent. 
+ */
 int KernelFork (void);
 
 int KernelExec (char *filename, char **argvec);

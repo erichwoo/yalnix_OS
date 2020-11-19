@@ -1,11 +1,9 @@
 /* Erich Woo & Boxian Wang
  * 23 October 2020
- * process manipulation
+ * process manipulation. See process.h for detailed documentation
  */
 
 #include "process.h"
-
-/******** PCB management *******/
 
 int get_pid(node_t *proc) {
   return ((pcb_t *) proc->data)->pid;
@@ -15,7 +13,6 @@ node_t *get_parent(node_t *proc) {
   return ((pcb_t *) proc->data)->parent;
 }
 
-// set up blank pcb node
 node_t *process_init(void) {
   pcb_t *new_pcb = malloc(sizeof(pcb_t));
   new_pcb->parent = NULL;
@@ -27,7 +24,6 @@ node_t *process_init(void) {
   return new_node((void *) new_pcb);
 }
 
-// copy a process, along with its  memory content (user and kernel stack); DOES NOT copy kernel context because whose timing is critical
 node_t *process_copy(node_t* parent) {
   node_t *child_node = process_init();
   pcb_t *child = child_node->data, *parent_pcb = parent->data;
@@ -39,7 +35,6 @@ node_t *process_copy(node_t* parent) {
   return child_node;
 }
 
-// terminate a process, meaning freeing all its frames (user), orphane its children list and free it, store its return code.
 void process_terminate(node_t *proc, int rc) { // return code
   // setup process for defunct state
   // zero/NULL variables so any future errant access is safe
@@ -64,7 +59,6 @@ void process_terminate(node_t *proc, int rc) { // return code
   p->d_children = NULL;
 }
 
-// free the node and all associated memory (free cached kernel also); must in a DIFFERENT process
 void process_destroy(node_t *proc) {
   pcb_t *p = proc->data;
   destroy_kstack(p->kstack);

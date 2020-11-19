@@ -1,15 +1,9 @@
 /* Erich Woo & Boxian Wang
  * 23 October 2020
- * process manipulation
+ * Everything related to process scheduling. See scheduling.h for detailed documentation
  */
 
 #include "scheduling.h"
-
-/******** Process management ********/
-extern proc_table_t *procs;
-extern node_t *init_node, *idle_node;
-extern int pilocvar_id;
-
 
 proc_table_t *proc_table_init(void) {
   proc_table_t *p = malloc(sizeof(proc_table_t));
@@ -22,7 +16,7 @@ proc_table_t *proc_table_init(void) {
   return p;
 }
 
-void ready(node_t *proc) { // put something in the ready queue
+void ready(node_t *proc) {
   enqueue(procs->ready, proc);
 }
 
