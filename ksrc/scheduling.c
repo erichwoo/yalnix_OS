@@ -65,7 +65,7 @@ void block(ll_t* block_list) {
 }
 
 void h_block(ll_t* block_list) {
-  insert_head(block_list, procs->running);
+  push(block_list, procs->running);
   run_next_ready();
 }
 
