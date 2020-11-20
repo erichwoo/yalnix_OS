@@ -44,9 +44,7 @@ void KernelExit (int status) {
   if (procs->running == init_node) Halt();
   reap_orphans(); // do the good deed and cleanup accumulated orphans
   process_terminate(procs->running, status);
-  TracePrintf(1, "Exit status is %d\n", status);
-  //check_wait(get_parent(procs->running));
-  //defunct();
+  //TracePrintf(1, "Exit status is %d\n", status);
   graveyard(); // give self to parent or orphan self, and schdeule next
 }
 
@@ -55,14 +53,12 @@ int KernelWait (int *status_ptr) {
   if (status_ptr != NULL && !check_addr(status_ptr, PROT_WRITE, curr_pt)) return ERROR;
   TracePrintf(1, "Process %d Waiting for a child...\n", ((pcb_t*) procs->running->data)->pid);
   pcb_t *parent = procs->running->data;
-  // if(is_empty(parent->children)) return ERROR;
   if (is_empty(parent->a_children) && is_empty(parent->d_children)) {
     TracePrintf(1, "Process has no children to wait on. Returning error\n");
     return ERROR;
   }
   
   node_t *child;
-  //while ((child = reap_children(parent->children)) == NULL) block_wait(); // have no dead babies
   while ((child = dequeue(parent->d_children)) == NULL)
     block_wait();
   
@@ -75,7 +71,6 @@ int KernelWait (int *status_ptr) {
   return cid;
 }
 
-/* Return pid from current pcb*/
 int KernelGetPid (void) {
   return get_pid(procs->running);
 }
@@ -130,17 +125,12 @@ int KernelDelay (int clock_ticks) {
 
 
 int KernelTtyRead (int tty_id, void *buf, int len) {
-  /// !!!  check param id valid? buf?
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (tty_id >= NUM_TERMINALS || !check_buffer(len, buf, PROT_READ, curr_pt)) return ERROR;
   return read_tty(tty_id, buf, len);
 }
 
-/* Write with hardware funct TtyTransmit
- * Validate error, and return whatever necessary
- */
 int KernelTtyWrite (int tty_id, void *buf, int len) {
-  /// !!!  check param id valid? buf?
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (tty_id >= NUM_TERMINALS || !check_buffer(len, buf, PROT_WRITE, curr_pt)) return ERROR;
   return write_tty(tty_id, buf, len);
@@ -148,9 +138,7 @@ int KernelTtyWrite (int tty_id, void *buf, int len) {
 
 //////////////// IPC Syscalls
 
-
 int KernelPipeInit (int *pipe_idp) {
-  /// check param !!!
   if (no_kernel_memory(1)) return ERROR;
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (!check_addr(pipe_idp, PROT_WRITE, curr_pt)) return ERROR;
@@ -160,19 +148,13 @@ int KernelPipeInit (int *pipe_idp) {
 }
 
 int KernelPipeRead (int pipe_id, void *buf, int len) {
-  /// check param !!!
   node_t *p = find_pipe(pipe_id);
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (p == NULL || !check_buffer(len, buf, PROT_READ, curr_pt)) return ERROR; /// what if failed?
   return read_pipe(p, buf, len);
 }
 
-/* Check if someone is reading/writing, block if so
- * acquire lock, write to pipe buffer (may need to reallocate buffer)
- * release lock
- */
 int KernelPipeWrite (int pipe_id, void *buf, int len) {
-  /// check param !!!
   node_t *p = find_pipe(pipe_id); /// what if failed?
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (p == NULL || !check_buffer(len, buf, PROT_WRITE, curr_pt)) return ERROR;
@@ -182,7 +164,6 @@ int KernelPipeWrite (int pipe_id, void *buf, int len) {
 //////////// Synchronization Syscalls
 
 int KernelLockInit (int *lock_idp) {
-  /// check param !!!
   if (no_kernel_memory(1)) return ERROR;
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (!check_addr(lock_idp, PROT_WRITE, curr_pt)) return ERROR;
@@ -192,7 +173,6 @@ int KernelLockInit (int *lock_idp) {
 }
 
 int KernelAcquire (int lock_id) {
-   /// check param !!!
   node_t* l = find_lock(lock_id);
   if (l == NULL) return ERROR;
   return acquire(l);
@@ -205,7 +185,6 @@ int KernelRelease (int lock_id) {
 }
 
 int KernelCvarInit (int *cvar_idp) {
-  /// check param !!!
   if (no_kernel_memory(1)) return ERROR;
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
   if (!check_addr(cvar_idp, PROT_WRITE, curr_pt)) return ERROR;
