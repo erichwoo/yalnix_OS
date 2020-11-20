@@ -35,7 +35,7 @@ int vacate_frame(unsigned int pfn) { // mark pfn as free
   return 0;
 }
 
-int get_frame(unsigned int pfn, int auto_assign) { // find a free physical frame, mark as occupied, returns pfn
+int get_frame(unsigned int pfn, int auto_assign) { 
   if (free_frame.filled >= free_frame.size) return ERROR;
   if (auto_assign)
     pfn = free_frame.avail_pfn;
@@ -97,7 +97,6 @@ user_pt_t *new_user_pt(void) {
   return new;
 }
 
-// copy user memory content;  to be done in the original process
 void copy_user_mem(user_pt_t *origin, user_pt_t *dst) {
   int dummy = BASE_PAGE_KSTACK - 1;
   for (int vpn = BASE_PAGE_1; vpn < LIM_PAGE_1; vpn++) {
