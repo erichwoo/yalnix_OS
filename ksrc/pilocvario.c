@@ -1,11 +1,9 @@
-/// ERROR CHECKING SHOULD BE DONE AT THE LEVEL CLOSEST TO THE INPUT
-/// STRUCTURAL/ABSTRACT CODE SHOULD DO MINIMUM ERROR CHECKING, BUT MOSTLY SANITY CHECKS
+/* Erich WOo & Boxian Wang
+ * 19 November 2020
+ * Pipe, Lock, Cvar, and TtyIO manipulation. See pilocvario.h for detailed documentation
+ */
 
 #include "pilocvario.h"
-
-extern pilocvar_t *pilocvar;
-extern proc_table_t *procs;
-extern io_control_t *io;
 
 // buffer
 
@@ -42,8 +40,12 @@ void reset_buffer(buffer_t *buffer) {
 }
 
 void destroy_buffer(buffer_t *buffer) {
+  buffer->size = 0;      // safety
+  reset_buffer(buffer);
   free(buffer->buffered);
+  buffer->buffered = NULL;
   free(buffer);
+  buffer = NULL;
 }
 
 // tty io
@@ -65,9 +67,6 @@ io_control_t *io_control_init(void) {
   return io;
 }
 
-// assume len > 0
-// this goes in syscall
-// landing buffer would be the actual buffer, if we reset it every time
 int write_tty(int tty_id, char *src, int len) {
   ttyio_t *out = io->out[tty_id];
   int written, total = 0;
@@ -89,16 +88,13 @@ int write_tty(int tty_id, char *src, int len) {
   return total;
 }
 
-// goes in trap, call it when write is finished
-int write_alert(int tty_id) {
+void write_alert(int tty_id) {
   ttyio_t *out = io->out[tty_id];
   reset_buffer(out->buffer);
   out->transmitting = 0;
   if (!is_empty(out->blocked)) unblock_head(out->blocked);
 }
 
-// assume len > 0
-// this goes in syscall
 int read_tty(int tty_id, char *dst, int len) {
   int read;
   ttyio_t *in = io->in[tty_id];
@@ -108,8 +104,7 @@ int read_tty(int tty_id, char *dst, int len) {
   return read;
 }
 
-// this goes in trap
-int receive(int tty_id) {
+void receive(int tty_id) {
   int read = TtyReceive(tty_id, io->landing_buffer, TERMINAL_MAX_LINE); // receive in landing buffer
   int real_rd = write_buffer(io->in[tty_id]->buffer, io->landing_buffer, read);
   if (real_rd > 0) unblock_all(io->in[tty_id]->blocked); // we got something, bois
@@ -129,7 +124,6 @@ node_t *new_pipe(int id) {
   return n;
 }
 
-// len > 0
 int write_pipe(node_t *pipe_n, char *src, int len) {
   pipe_t *pipe = pipe_n->data;
   int total, written = 0;
@@ -148,7 +142,7 @@ int write_pipe(node_t *pipe_n, char *src, int len) {
     pipe->unfulfilled += get_size(pipe->readblocked); // now a process is in limbo
     unblock_all(pipe->readblocked); // now a process is in limbo
   }
-  return total; // should be total written, not last write's # of written
+  return total;
 }
 
 // assume len > 0
@@ -172,9 +166,16 @@ int read_pipe(node_t *pipe_n, char *dst, int len) {
 int destroy_pipe(node_t *pipe_n) {
   pipe_t *pipe = pipe_n->data;
   if (!is_empty(pipe->readblocked) || !is_empty(pipe->writeblocked) || pipe->unfulfilled > 0) return ERROR;
+  // free insides
   destroy_buffer(pipe->buffer);
+  free(pipe->readblocked);
+  free(pipe->writeblocked);
+  pipe->readblocked = pipe->writeblocked = NULL;
+  pipe->unfulfilled = 0;
+  // free node
   remove(pilocvar->pipe, pipe_n);
   destroy_node(pipe_n);
+  pipe_n = NULL;
   return 0;
 }
 
@@ -191,13 +192,14 @@ node_t *new_lock(int id) {
   return n;
 }
 
-void acquire(node_t *lock_n) {
+int acquire(node_t *lock_n) {
   lock_t *lock = lock_n->data;
   while (!(lock->owner == NULL || lock->owner == procs->running)) {
     block(lock->blocked); // mesa style
     lock->unfulfilled--; // now I wake up and check things (fulfilled)
   }
   lock->owner = procs->running;
+  return 0;
 }
 
 int release(node_t *lock_n) {
@@ -208,14 +210,22 @@ int release(node_t *lock_n) {
     lock->unfulfilled++; // now a process is in limbo
   }
   lock->owner = NULL;
+  return 0;
 }
 
 int destroy_lock(node_t *lock_n) {
   lock_t *lock = lock_n->data;
   if (lock->owner != NULL || !is_empty(lock->blocked) || 
     lock->unfulfilled > 0 || lock->cvar > 0) return ERROR; // cant destroy easily!
+  // destroy contents
+  free(lock->blocked);
+  lock->owner = NULL;
+  lock->blocked = NULL;
+  lock->unfulfilled = lock->cvar = 0;
+  // destroy node
   remove(pilocvar->lock, lock_n);
   destroy_node(lock_n);
+  lock_n = NULL;
   return 0;
 }
 
@@ -252,8 +262,13 @@ void wait_cvar(node_t *cvar_n, node_t *lock_n) {
 int destroy_cvar(node_t *cvar_n) {
   lock_t *cvar = cvar_n->data;
   if (!is_empty(cvar->blocked)) return ERROR; // cant destroy easily!
+  // destroy contents
+  free(cvar->blocked);
+  cvar->blocked = NULL;
+  // destroy node
   remove(pilocvar->cvar, cvar_n);
   destroy_node(cvar_n);
+  cvar_n = NULL;
   return 0;
 }
 

@@ -5,13 +5,18 @@
 
 #include "scheduling.h"
 
+// THE process table
+extern proc_table_t *procs;
+
+// THE idle process node
+extern node_t *idle_node;
+
 proc_table_t *proc_table_init(void) {
   proc_table_t *p = malloc(sizeof(proc_table_t));
   p->running = NULL;
   p->waiting = new_ll();
   p->ready = new_ll();
   p->delayed = new_ll();
-  //p->defunct = new_ll();
   p->orphans = new_ll();
   return p;
 }
@@ -91,7 +96,6 @@ void check_delay(void) {
 }
 
 void graveyard(void) { 
-  //enqueue(procs->defunct, procs->running); // even if is an orphan, must move to graveyard before destroying it externally
   node_t* parent = get_parent(procs->running);
   if (parent != NULL) { // put onto parent's defunct children queue
     enqueue(((pcb_t*) parent->data)->d_children, procs->running);
@@ -103,8 +107,7 @@ void graveyard(void) {
   run_next_ready();
 }
 
-void defunct_blocked(ll_t* blocked, node_t *proc) { // for some reason if we have to kill a blocked process
-  //enqueue(procs->defunct, remove(blocked, proc));
+void defunct_blocked(ll_t* blocked, node_t *proc) { 
   remove(blocked, proc);
   node_t* parent = get_parent(proc);
   if (parent != NULL) {// put onto parent's defunct children queue
@@ -116,29 +119,7 @@ void defunct_blocked(ll_t* blocked, node_t *proc) { // for some reason if we hav
     enqueue(procs->orphans, proc);
 }
 
-/*
-node_t* reap_children(ll_t* d_children) { // search graveyard for children; return NULL if not found; dont remove children, just orphane it.
-  node_t *curr;
-  for (curr = procs->defunct->head; curr != NULL; curr = curr->next) {
-    if (has_member(children, curr)) {
-      ((pcb_t *)curr->data)->parent = NULL; // orphane, will be destroyed next
-      return curr;
-    }
-  }
-  return NULL;
-}
-*/
-void reap_orphans(void) { // destroy all defunct orphans; do so every so often (after wake up from wait, for example)
-  /*node_t *curr = procs->defunct->head;
-  while (curr != NULL) {
-    node_t *next = curr->next;
-    if (get_parent(curr) == NULL) {
-      remove(procs->defunct, curr); // first remove from queue
-      process_destroy(curr); // then destroy altogether
-    }
-    curr = next;
-  }
-  */
+void reap_orphans(void) { 
   // remove and destroy all orphans
   while (!is_empty(procs->orphans))
     process_destroy(dequeue(procs->orphans));

@@ -5,6 +5,12 @@
 
 #include "syscalls.h"
 
+// to access the current process and THE proc table
+extern proc_table_t *procs;
+
+// for halting if curr is init
+extern node_t *init_node;
+
 int KernelFork(void) {
   user_pt_t *curr_pt = ((pcb_t*) procs->running->data)->userpt;
   if (no_kernel_memory(curr_pt->size + 3)) {
@@ -22,7 +28,6 @@ int KernelFork(void) {
 
 /* Load Program with exec args and pcb_t  */
 int KernelExec (char *filename, char **argvec) {
-  // !!!check parameters here, make sure is legal and readable and are actual strings and have NULL
   user_pt_t *curr_pt = ((pcb_t*) procs->running->data)->userpt;
   if (!check_string(filename, curr_pt) || !check_args(argvec, curr_pt)) return ERROR;
   TracePrintf(1, "Process %d Exec-ing into program %s\n", ((pcb_t*) procs->running->data)->pid, filename);
@@ -190,16 +195,13 @@ int KernelAcquire (int lock_id) {
    /// check param !!!
   node_t* l = find_lock(lock_id);
   if (l == NULL) return ERROR;
-  acquire(l);
-  return 0;
+  return acquire(l);
 }
 
 int KernelRelease (int lock_id) {
-   /// check param !!!
   node_t* l = find_lock(lock_id);
   if (l == NULL) return ERROR;
-  release(l);
-  return 0;
+  return release(l);
 }
 
 int KernelCvarInit (int *cvar_idp) {

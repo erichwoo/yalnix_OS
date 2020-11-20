@@ -12,12 +12,6 @@
 #include "memory.h"
 #include "scheduling.h"
 
-// THE proc table
-extern proc_table_t *procs;
-
-// THE global kernel page tables
-extern kernel_global_pt_t kernel_pt;
-
 /* Read load.c for documentation */
 int LoadProgram(char *name, char *args[], pcb_t *proc);
 

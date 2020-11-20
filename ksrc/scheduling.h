@@ -20,13 +20,6 @@ typedef struct proc_table {
   ll_t *orphans;    // a linked-list of back-logged DEAD orphans to destroy periodically
 } proc_table_t;
 
-// THE process table
-extern proc_table_t *procs;
-
-// THE idle process node
-extern node_t *idle_node;
-//extern int pilocvar_id;
-
 /**************************** FUNCTION DECLARATIONS ***************************/
 
 /* Initializes a pointer to a blank proc_table_t and returns it

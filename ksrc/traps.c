@@ -5,6 +5,9 @@
 
 #include "traps.h"
 
+// the process table for TrapMemory use
+extern proc_table_t* procs;
+
 void TrapKernel(UserContext *uc) {
   save_uc(uc);
   TracePrintf(1, "The code of syscall is 0x%x\n", uc->code);

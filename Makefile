@@ -8,8 +8,8 @@
 K_SRC_DIR = ./ksrc
 
 # What are the kernel c and include files?
-K_SRCS = memory.c process.c syscalls.c load.c cswitch.c kernel.c linked_list.c scheduling.c traps.c pilocvario.c
-K_INCS = memory.h process.h syscalls.h misc.h linked_list.h scheduling.h traps.h pilocvario.h
+K_SRCS = memory.c process.c syscalls.c cswitch.c linked_list.c scheduling.c traps.c pilocvario.c load.c kernel.c
+K_INCS = memory.h process.h syscalls.h cswitch.h linked_list.h scheduling.h traps.h pilocvario.h
 
 # Where's your user source?
 U_SRC_DIR = ./test

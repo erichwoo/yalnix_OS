@@ -5,7 +5,40 @@
 
 #include "cswitch.h"
 
+// THE proc table
+extern proc_table_t *procs;
+
+// THE global kernel page tables
+extern kernel_global_pt_t kernel_pt;
+
+/********************* FUNCTION DECLARATIONS ***********************/
+
+/* Switches Kernel Context and kernel stack pages
+ * from the specified current process, to the specified next.
+ * A copy of the KernelContext is stored into the current process so that when the
+ * current process resumes at some later time, it will return from the KCS call.
+ * The kc* of the next process is returned, so that the kernel teleports to the next.
+ *
+ * @param kc_in the Kernel Context pointer of the caller
+ * @param curr_pcb_p the current process' pcb pointer
+ * @param next_pcb_p the next process' pcb pointer
+ * @return the KernelContext pointer of the next process
+*/
 KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p);
+
+/* From the Yalnix Manual: 
+ * - KCCopy will simply copy the kernel context from *kc_in into the new pcb, 
+ * and copy the contents of the current kernel stack
+ * into the frames that have been allocated for the new process’s kernel stack. 
+ * However, it will then return kc in.
+ * 
+ * new_pcb_p must be an initialized/copied pcb_t* before calling KCCopy
+ *
+ * @param kc_in the Kernel Context pointer of the caller
+ * @param new_pcb_p the child's pcb pointer
+ * @param not_used an unused parameter
+ * @return the KernelContext pointer both parent and child return from
+ */
 KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used);
 
 /********************* FUNCTIONS ***********************/
@@ -33,17 +66,6 @@ void copy_kernel(node_t *child) {
     KernelContextSwitch(KCCopy, child->data, NULL);
 }
 
-/* Switches Kernel Context and kernel stack pages
- * from the specified current process, to the specified next.
- * A copy of the KernelContext is stored into the current process so that when the
- * current process resumes at some later time, it will return from the KCS call.
- * The kc* of the next process is returned, so that the kernel teleports to the next.
- *
- * @param kc_in the Kernel Context pointer of the caller
- * @param curr_pcb_p the current process' pcb pointer
- * @param next_pcb_p the next process' pcb pointer
- * @return the KernelContext pointer of the next process
-*/
 KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p) {
     pcb_t *curr_pcb = (pcb_t *) curr_pcb_p, *next_pcb = (pcb_t *) next_pcb_p;
     curr_pcb->kc = *kc_in;
@@ -58,19 +80,6 @@ KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p
     return &next_pcb->kc; // teleport to next
 }
 
-/* From the Yalnix Manual: 
- * - KCCopy will simply copy the kernel context from *kc_in into the new pcb, 
- * and copy the contents of the current kernel stack
- * into the frames that have been allocated for the new process’s kernel stack. 
- * However, it will then return kc in.
- * 
- * new_pcb_p must be an initialized/copied pcb_t* before calling KCCopy
- *
- * @param kc_in the Kernel Context pointer of the caller
- * @param new_pcb_p the child's pcb pointer
- * @param not_used an unused parameter
- * @return the KernelContext pointer both parent and child return from
- */
 KernelContext* KCCopy(KernelContext *kc_in, void *new_pcb_p, void *not_used) {    
     pcb_t *new_pcb = (pcb_t *) new_pcb_p;
     new_pcb->kc = *kc_in;

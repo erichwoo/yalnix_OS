@@ -18,9 +18,6 @@
 // used when booting to hook up the trap-handler vector table
 typedef void (*trap_handler_t) (UserContext* uc); 
 
-// the process table for TrapMemory use
-extern proc_table_t* procs; 
-
 /********************************** FUNCTION DECLARATIONS ******************************************/
 
 // All Trap Functions below, besides aborting traps,
