@@ -6,9 +6,9 @@
 #ifndef __PROCESS_H
 #define __PROCESS_H
 
+#include <ykernel.h>
 #include "linked_list.h"
 #include "memory.h"
-#include <ykernel.h>
 
 // the payload of a pcb
 typedef struct pcb {

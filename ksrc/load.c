@@ -10,7 +10,6 @@
 #include <ykernel.h>
 #include <load_info.h>
 
-
 #include "memory.h"
 #include "process.h"
 

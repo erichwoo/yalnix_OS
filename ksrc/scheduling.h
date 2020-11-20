@@ -9,7 +9,7 @@
 #include <ykernel.h>
 #include "process.h"
 #include "linked_list.h"
-#include "misc.h"
+#include "cswitch.h"
 
 // typedefs the top-level process table "manager"
 typedef struct proc_table {

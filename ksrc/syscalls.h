@@ -12,7 +12,7 @@
 #include "process.h"
 #include "scheduling.h"
 #include "pilocvario.h"
-#include "misc.h"
+#include "cswitch.h"
 
 // to access the current proc and proccess table
 extern proc_table_t *procs;

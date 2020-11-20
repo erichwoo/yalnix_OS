@@ -9,7 +9,7 @@
 #include <ykernel.h>
 #include "memory.h"
 #include "syscalls.h"
-#include "misc.h"
+#include "cswitch.h"
 #include "scheduling.h"
 #include "process.h"
 #include "pilocvario.h"

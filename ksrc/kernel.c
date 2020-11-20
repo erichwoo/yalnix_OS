@@ -4,7 +4,7 @@
 #include "process.h"
 #include "traps.h"
 #include "scheduling.h"
-#include "misc.h"
+#include "cswitch.h"
 #include "pilocvario.h"
 
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs
