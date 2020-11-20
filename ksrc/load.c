@@ -1,3 +1,8 @@
+/* Erich Woo & Boxian Wang
+ * 19 November 2020
+ * Our edits made to the Load Program source file
+ */
+
 /*
  * ==>> This is a TEMPLATE for how to write your own LoadProgram function.
  * ==>> Places where you must change this file to work with your kernel are

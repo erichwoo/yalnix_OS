@@ -1,6 +1,6 @@
 /* Erich Woo & Boxian Wang
  * 23 October 2020
- * Process structures header file
+ * header file for scheduling.c
  */
 
 #ifndef __SCHEDULING_H
@@ -158,6 +158,5 @@ void defunct_blocked(ll_t* blocked, node_t *proc);
  * Removes each orphan from the list and Calls process_destroy() on each one
  */
 void reap_orphans(void);
-
 
 #endif //__SCHEDULING_H

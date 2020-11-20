@@ -19,3 +19,9 @@ the `nth` case, use command-line args from outside the test/ directory:
 ```
 
 Note, cases 5,6,7 require the flag `-x` for terminal use
+
+### Running with a Console and shells
+
+```bash
+./yalnix -x test/init
+```

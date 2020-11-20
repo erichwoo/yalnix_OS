@@ -1,6 +1,6 @@
 /* Erich Woo & Boxian Wang
  * 23 October 2020
- * Kernel Memory Management
+ * Kernel Memory Management. See memory.c for detailed documentation
  */
 
 #include "memory.h"

@@ -12,9 +12,9 @@
 #define NUM_PAGES_0 (VMEM_0_SIZE / PAGESIZE)
 #define NUM_KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
 #define BASE_PAGE_0 (VMEM_0_BASE >> PAGESHIFT) // starting page num of reg 0
-#define LIM_PAGE_0 (VMEM_0_LIMIT >> PAGESHIFT) // first page above reg 0                                   
-#define BASE_PAGE_1 (VMEM_1_BASE >> PAGESHIFT) // starting page num of reg 1                               
-#define LIM_PAGE_1 (VMEM_1_LIMIT >> PAGESHIFT) // first page above reg 1                                   
+#define LIM_PAGE_0 (VMEM_0_LIMIT >> PAGESHIFT) // first page above reg 0
+#define BASE_PAGE_1 (VMEM_1_BASE >> PAGESHIFT) // starting page num of reg 1
+#define LIM_PAGE_1 (VMEM_1_LIMIT >> PAGESHIFT) // first page above reg 1
 #define BASE_PAGE_KSTACK (KERNEL_STACK_BASE >> PAGESHIFT)
 #define LIM_PAGE_KSTACK (KERNEL_STACK_LIMIT >> PAGESHIFT)
 #define BASE_FRAME (PMEM_BASE >> PAGESHIFT)
@@ -27,17 +27,17 @@
 
 #define MAX_CHECK 256 // max len of arg or string
 
-typedef struct f_frame { // tracking which frames in physical are free                                     
-  int size; // available number of physical frames                                                         
-  unsigned char * bit_vector; // pointer to a bit vector                                                   
-  unsigned int avail_pfn; // next available pfn                                                            
+typedef struct f_frame { // tracking which frames in physical are free
+  int size; // available number of physical frames
+  unsigned char * bit_vector; // pointer to a bit vector
+  unsigned int avail_pfn; // next available pfn
   int filled;
 } free_frame_t;
 
-typedef struct user_pt { // userland page table                                                            
+typedef struct user_pt { // userland page table
   void *data_end; // end of data                                                     
   void *brk; // brk                                                  
-  void *stack_low; // top of the user stack                                                                
+  void *stack_low; // top of the user stack
   pte_t pt[NUM_PAGES_1]; // actual entries  
   int size; // num physical pages                                                               
 } user_pt_t;
@@ -50,6 +50,8 @@ typedef struct kernel_global_pt { // includes code, data, heap
   pte_t pt[NUM_PAGES_0]; // actual entries
   void *brk;
 } kernel_global_pt_t;
+
+/******************************** FUNCTION DECLARATIONS *****************************8/
 
 /* Sets the page table entry
  *
@@ -70,7 +72,9 @@ int vacate_frame(unsigned int pfn);
 /* Gets a free physical frame, marks it as occupied, 
  * and returns the frame #
  *
- * @param pfn if 
+ * @param pfn page frame #
+ * @param auto_assign whether to assign automatically or not
+ * @return the frame # gotten
  */
 int get_frame(unsigned int pfn, int auto_assign);
 

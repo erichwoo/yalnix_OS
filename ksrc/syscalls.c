@@ -1,6 +1,6 @@
 /* Erich Woo & Boxian Wang
  * 31 October 2020
- * Syscall FUnctionality
+ * Syscall FUnctionality. See syscall.h for detailed documentation
  */
 
 #include "syscalls.h"
@@ -75,7 +75,6 @@ int KernelGetPid (void) {
   return get_pid(procs->running);
 }
 
-
 int KernelUserBrk (void *addr) {
   TracePrintf(1, "User Process %d Brk-ing to address 0x%x\n", ((pcb_t*) procs->running->data)->pid, addr);
   user_pt_t *userpt = ((pcb_t *) procs->running->data)->userpt;
@@ -107,7 +106,6 @@ int KernelUserBrk (void *addr) {
   return 0;
 }
 
-
 int KernelDelay (int clock_ticks) {
   TracePrintf(1, "Process %d Delaying for %d clock ticks\n", ((pcb_t*) procs->running->data)->pid, clock_ticks);
   if (clock_ticks < 0) {
@@ -122,7 +120,6 @@ int KernelDelay (int clock_ticks) {
 }
    
 ////////////// I/O Syscalls
-
 
 int KernelTtyRead (int tty_id, void *buf, int len) {
   user_pt_t *curr_pt = ((pcb_t *) procs->running->data)->userpt;
@@ -194,7 +191,6 @@ int KernelCvarInit (int *cvar_idp) {
 }
 
 int KernelCvarWait (int cvar_id, int lock_id) {
-  /// check param !!!
   node_t *l = find_lock(lock_id), *c = find_cvar(cvar_id);
   if (l == NULL || c == NULL) return ERROR;
   wait_cvar(c, l);
@@ -202,14 +198,12 @@ int KernelCvarWait (int cvar_id, int lock_id) {
 }
 
 int KernelCvarSignal (int cvar_id) {
-  /// check param !!!
   node_t* c = find_cvar(cvar_id);
   if (c == NULL) return ERROR;
   signal_cvar(c);
   return 0;
 }
 
-/* Signal all the processes on cond_var queue */
 int KernelCvarBroadcast (int cvar_id) {
   node_t* c = find_cvar(cvar_id);
   if (c == NULL) return ERROR;
@@ -217,7 +211,6 @@ int KernelCvarBroadcast (int cvar_id) {
   return 0;
 }
 
-/* free and remove all memory in the pipe/lock/condvar of the given id*/
 int KernelReclaim (int id) {
   node_t *l = find_lock(id), *c = find_cvar(id), *p = find_pipe(id);
   if (!(p || c || l)) return ERROR;
@@ -225,5 +218,3 @@ int KernelReclaim (int id) {
   else if (c) return destroy_cvar(c);
   else return destroy_lock(l);
 }
-
-

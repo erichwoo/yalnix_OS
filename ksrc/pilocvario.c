@@ -5,6 +5,18 @@
 
 #include "pilocvario.h"
 
+// THE storage bookkeeper for all pipes, locks, and cvars
+extern pilocvar_t *pilocvar;
+
+// THE proc table
+  
+extern proc_table_t *procs;
+
+// The storage bookkeeper for all terminals
+extern io_control_t *io;
+
+/************************** FUNCTIIONS **************************/
+
 // buffer
 
 buffer_t *new_buffer(int size) {

@@ -7,6 +7,7 @@
 #include "cswitch.h"
 #include "pilocvario.h"
 
+/********************* GLOBALS *************************/
 trap_handler_t trap_vector[TRAP_VECTOR_SIZE]; // array of pointers to trap handler functs
 proc_table_t *procs;
 free_frame_t free_frame;
@@ -15,17 +16,51 @@ node_t *init_node = NULL, *idle_node = NULL;
 io_control_t *io;
 pilocvar_t *pilocvar;
 
+/********************** FUNCTION DECLARATIONS ******************/
+
+/* Sets up the initial region 0 page table and enables the VM */
+void VM_setup(void);
+
+/* Sets up the trap vector table to hook up to the trap handler functions */
+void trap_setup(void);
+
+/* Pauses in an infinite while loop; for Idle*/
+void DoIdle(void);
+
+/* Sets up the idle process, which is cloned from init
+ *
+ * @param uctxt the Usercontext to copy for idle
+ */
+void idle_setup(UserContext* uctxt);
+
+/* Sets up the init process and loads the initial program specified by args
+ *
+ * @param name the name of the program
+ * @param args the program args
+ * @param uctxt the UserContext to copy for init
+ */
+void init_load(char *name, char *args[], UserContext *uctxt);
+
+/* Entrance of the OS at boot. 
+ * Sets up VM, traps, process/pipe/lock/cvar/io control,
+ * and loads as init cloning into idle
+ *
+ * @param cmd_args the boot command-line args
+ * @param pmem_size the size of the running machine's physical memory
+ * @param uctxt the inital UserContext structure
+ */
+void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt);
+
 /*********************** Functions ***********************/
 void VM_setup(void) {
   // write stuff
-
   user_pt_t *bogus = new_user_pt();
   WriteRegister(REG_PTBR0, (unsigned int) kernel_pt.pt);
   WriteRegister(REG_PTLR0, (unsigned int) NUM_PAGES_0);
   WriteRegister(REG_PTBR1, (unsigned int) bogus->pt);
   WriteRegister(REG_PTLR1, (unsigned int) NUM_PAGES_1);
-  // fill in the pagetable so that vpn = pfn
 
+  // fill in the pagetable so that vpn = pfn
   for (int vpn = BASE_PAGE_0; vpn < LIM_PAGE_0; vpn++) {
     if (vpn < (unsigned int) _kernel_data_start >> PAGESHIFT) {
       set_pte(&kernel_pt.pt[vpn - BASE_PAGE_0], 1, get_frame(vpn, FIXED), PROT_READ|PROT_EXEC);

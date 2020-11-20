@@ -66,4 +66,3 @@ void process_destroy(node_t *proc) {
   free(p->userpt);
   destroy_node(proc);
 }
-

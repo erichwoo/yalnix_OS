@@ -14,7 +14,6 @@
 typedef struct pcb {
   int pid;
   node_t *parent;    // quick parent-tracking
-  //ll_t* children;
   ll_t *a_children;  // linked-list of alive children, different nodes but same pcbs
   ll_t *d_children;  // linked-list of defunct children
   user_pt_t *userpt; // user page table

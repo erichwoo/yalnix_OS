@@ -56,14 +56,7 @@ typedef struct io_control {
   char landing_buffer[TERMINAL_MAX_LINE]; // this is the landing buffer for ttyreceive/transmit
 } io_control_t;
 
-// THE storage bookkeeper for all pipes, locks, and cvars
-extern pilocvar_t *pilocvar;
-
-// THE proc table
-extern proc_table_t *procs;
-
-// The storage bookkeeper for all terminals
-extern io_control_t *io;
+/******************************* FUNCTION DECLARATIONS *****************************/
 
 /////////////////////// BUFFER
 
