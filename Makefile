@@ -5,17 +5,17 @@
 #	of years past...
 
 # Where's your kernel source?
-K_SRC_DIR = .
+K_SRC_DIR = ./ksrc
 
 # What are the kernel c and include files?
-K_SRCS = kmem.c process.c syscall.c load.c cswitch.c kernel.c
-K_INCS = kmem.h process.h syscall.h load.h cswitch.h global.h
+K_SRCS = memory.c process.c syscalls.c cswitch.c linked_list.c scheduling.c traps.c pilocvario.c load.c kernel.c
+K_INCS = memory.h process.h syscalls.h cswitch.h linked_list.h scheduling.h traps.h pilocvario.h
 
 # Where's your user source?
-U_SRC_DIR = .
+U_SRC_DIR = ./test
 
 # What are the user c and include files?
-U_SRCS = init.c
+U_SRCS = init.c console.c shell.c myinit.c
 U_INCS = 
 
 
